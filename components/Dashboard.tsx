@@ -216,8 +216,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onStartLearning, onTriggerU
           </div>
           
           <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 text-center">
-             {/* Fixed: Add explicit type casting for arithmetic operation in sort callback to resolve TS error */}
-             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-relaxed">Most Explored: <span className="text-indigo-600 dark:text-indigo-400 font-black">{Object.entries(analytics.domainCounts).sort((a, b) => (b[1] as number) - (a[1] as number))[0]?.[0] || 'None'}</span></p>
+             {/* Fixed: Use Number casting explicitly and destructure to ensure arithmetic type safety for sort callback */}
+             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-relaxed">Most Explored: <span className="text-indigo-600 dark:text-indigo-400 font-black">{Object.entries(analytics.domainCounts).sort(([, aCount], [, bCount]) => (bCount as number) - (aCount as number))[0]?.[0] || 'None'}</span></p>
           </div>
         </div>
       </div>

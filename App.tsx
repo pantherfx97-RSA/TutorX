@@ -18,6 +18,7 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | undefined>();
   const [activeLesson, setActiveLesson] = useState<LessonContent | null>(null);
   const [activeDifficulty, setActiveDifficulty] = useState<DifficultyLevel>(DifficultyLevel.BEGINNER);
+  const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
   
   // Theme management
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -31,6 +32,20 @@ const App: React.FC = () => {
   const [targetTier, setTargetTier] = useState<SubscriptionTier>(SubscriptionTier.PREMIUM);
 
   useEffect(() => {
+    const checkApiKey = async () => {
+      // If process.env.API_KEY is already set, we are good.
+      // Otherwise, check the aistudio bridge.
+      if (process.env.API_KEY) {
+        setHasApiKey(true);
+      } else if ((window as any).aistudio) {
+        const selected = await (window as any).aistudio.hasSelectedApiKey();
+        setHasApiKey(selected);
+      } else {
+        setHasApiKey(false);
+      }
+    };
+    checkApiKey();
+
     const stored = mockAuth.getStoredUser();
     if (stored) {
       setUser(stored);
@@ -87,9 +102,21 @@ const App: React.FC = () => {
       setActiveLesson(content);
       setCurrentScreen(AppScreen.LEARNING);
     } catch (err: any) {
+      // If the error is about a missing or invalid key, we might need to re-prompt
+      if (err.message.includes("Requested entity was not found") || err.message.includes("API Key")) {
+        setHasApiKey(false);
+      }
       alert(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSelectApiKey = async () => {
+    if ((window as any).aistudio) {
+      await (window as any).aistudio.openSelectKey();
+      // Assume success as per guidelines to avoid race condition
+      setHasApiKey(true);
     }
   };
 
@@ -137,6 +164,44 @@ const App: React.FC = () => {
   };
 
   const renderContent = () => {
+    // If we definitely don't have an API key, show the setup screen
+    if (hasApiKey === false) {
+      return (
+        <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50 dark:bg-slate-950">
+          <div className="max-w-md w-full bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 sm:p-12 shadow-2xl text-center space-y-8 border border-slate-100 dark:border-slate-800 animate-in fade-in zoom-in duration-500">
+             <div className="w-20 h-20 bg-indigo-600 rounded-3xl mx-auto flex items-center justify-center shadow-xl shadow-indigo-200 dark:shadow-none animate-float">
+                <svg viewBox="0 0 64 64" fill="none" className="w-10 h-10">
+                  <path d="M14 14L50 50" stroke="white" strokeWidth="10" strokeLinecap="round" />
+                  <path d="M50 14L14 50" stroke="white" strokeWidth="10" strokeLinecap="round" strokeOpacity="0.5" />
+                </svg>
+             </div>
+             <div className="space-y-3">
+               <h2 className="text-2xl font-black text-slate-800 dark:text-slate-50">AI Configuration Required</h2>
+               <p className="text-slate-500 dark:text-slate-400 text-sm font-medium leading-relaxed">
+                 To curate your masterclasses, TutorX needs access to the Gemini AI Engine. Please select a valid API key from a paid GCP project.
+               </p>
+             </div>
+             <div className="space-y-4">
+               <button 
+                 onClick={handleSelectApiKey}
+                 className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-2xl shadow-xl transition-all active:scale-[0.98] uppercase tracking-widest text-xs"
+               >
+                 Connect AI Key
+               </button>
+               <a 
+                 href="https://ai.google.dev/gemini-api/docs/billing" 
+                 target="_blank" 
+                 rel="noopener noreferrer"
+                 className="block text-[10px] font-black text-slate-400 hover:text-indigo-500 uppercase tracking-[0.15em] transition-colors"
+               >
+                 Billing & Setup Documentation
+               </a>
+             </div>
+          </div>
+        </div>
+      );
+    }
+
     if (!user) {
       return (
         <div className={isDarkMode ? 'dark' : ''}>

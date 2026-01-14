@@ -1,10 +1,11 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 import { LessonContent, DifficultyLevel } from "../types";
-import { MODEL_NAME } from "../constants";
 
 export const generateLesson = async (topic: string, level: DifficultyLevel): Promise<LessonContent> => {
+  // Always create a new instance inside the call to get the latest key
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const model = 'gemini-3-pro-preview'; // Upgraded for complex reasoning tasks
 
   const prompt = `You are TutorX, an elite AI Architect and Master Educator. 
   Current Mission: Deliver a comprehensive, deep-dive Masterclass on the topic: "${topic}".
@@ -29,7 +30,7 @@ export const generateLesson = async (topic: string, level: DifficultyLevel): Pro
 
   try {
     const response = await ai.models.generateContent({
-      model: MODEL_NAME,
+      model: model,
       contents: prompt,
       config: {
         temperature: 0.8,
@@ -76,12 +77,17 @@ export const generateLesson = async (topic: string, level: DifficultyLevel): Pro
     return JSON.parse(response.text) as LessonContent;
   } catch (error: any) {
     console.error("TutorX AI Error:", error);
+    // Specific error handling for missing key or entity issues
+    if (error.message.includes("API Key") || error.message.includes("403") || error.message.includes("401")) {
+      throw new Error("AI Engine Authentication Failed: Please check your API Key configuration.");
+    }
     throw new Error(`Failed to curate lesson: ${error.message || "Unknown Error"}`);
   }
 };
 
 export const askTutor = async (question: string, context: LessonContent, history: {role: 'user' | 'model', text: string}[]): Promise<string> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const model = 'gemini-3-pro-preview';
   
   const systemInstruction = `You are TutorX AI, a helpful and expert teaching assistant. 
   The student has just finished a masterclass on "${context.topic}". 
@@ -91,19 +97,20 @@ export const askTutor = async (question: string, context: LessonContent, history
 
   try {
     const chat = ai.chats.create({
-      model: MODEL_NAME,
+      model: model,
       config: {
         systemInstruction,
         temperature: 0.7,
       }
     });
 
-    // Send the message with history (transformed to the correct format if needed, but simple sendMessage handles string)
-    // Note: In some SDK versions history is passed in create, but we can also just send the prompt with context.
     const result = await chat.sendMessage({ message: question });
     return result.text || "I'm sorry, I couldn't process that question.";
   } catch (error: any) {
     console.error("TutorX Chat Error:", error);
+    if (error.message.includes("API Key")) {
+      return "Authentication error. Please re-configure your AI key in the settings.";
+    }
     return "The AI Tutor is temporarily unavailable. Please try again in a moment.";
   }
 };
