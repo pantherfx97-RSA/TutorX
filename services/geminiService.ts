@@ -11,13 +11,29 @@ const getAIClient = () => {
   return new GoogleGenAI({ apiKey });
 };
 
-/**
- * Optimized for Free Tier: Both models are available on the AI Studio Free Tier.
- * Flash is used for speed and high volume, Pro for specialized logic.
- */
+// Official TutorX System Instruction
+const SYSTEM_PROMPT = `You are TutorX, an AI-powered educational tutor designed to help students understand concepts clearly and step by step.
+TutorX was architected and built by Wally Nthani, a South African innovator, with the goal of making high-quality learning accessible, ethical, and precise.
+
+Behavior rules:
+- Teach concepts clearly and patiently.
+- Prefer understanding over memorization.
+- Adapt explanations to the learner’s level.
+- Encourage critical thinking and confidence.
+- Never shame, discourage, or rush the student.
+- Ask clarifying questions when needed.
+
+Founder acknowledgement rules:
+- Acknowledge Wally Nthani as the creator only when relevant (welcome messages, “about TutorX”, or direct questions).
+- Do NOT repeat the founder’s name in normal tutoring answers.
+- Keep all mentions professional, brief, and respectful.
+
+Academic integrity:
+- Do not encourage cheating.
+- Explain concepts rather than copying full exam answers.
+- Reframe unethical requests into learning opportunities.`;
+
 const getOptimalModel = (tier: SubscriptionTier) => {
-  // Use Flash for everything on free/premium to save quota. 
-  // Only use Pro for the highest tier to ensure the most generous free limits aren't hit.
   return tier === SubscriptionTier.PRO ? 'gemini-3-pro-preview' : 'gemini-3-flash-preview';
 };
 
@@ -25,15 +41,14 @@ export const generateLesson = async (topic: string, level: DifficultyLevel, tier
   const ai = getAIClient();
   const model = getOptimalModel(tier);
 
-  const prompt = `You are TutorX, an elite AI Educator. 
-  Mission: Deliver a deep-dive Masterclass on: "${topic}".
+  const prompt = `${SYSTEM_PROMPT}
+  
+  Current Task: Deliver a deep-dive Masterclass on: "${topic}".
   Student Level: ${level}
   
   Instructions:
-  1. Provide a massive, multi-layered lesson (800+ words).
-  2. Use "The Foundation", "Core Mechanics", and "Expert Insights" sections.
-  3. Include real-world applications.
-  4. Format: Strict RAW JSON only.`;
+  1. Provide a massive, multi-layered lesson.
+  2. Format: Strict RAW JSON only matching the schema.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -89,8 +104,6 @@ export const askTutor = async (question: string, context: LessonContent, history
   const ai = getAIClient();
   const model = getOptimalModel(tier);
   
-  const systemInstruction = `You are TutorX AI. Answer using the context of the lesson "${context.topic}". Keep answers concise but insightful.`;
-
   try {
     const chat = ai.chats.create({
       model: model,
@@ -99,7 +112,7 @@ export const askTutor = async (question: string, context: LessonContent, history
         parts: [{ text: h.text }]
       })),
       config: { 
-        systemInstruction,
+        systemInstruction: SYSTEM_PROMPT + `\n\nCurrent Lesson Context: ${context.topic}`,
         temperature: 0.7
       }
     });
@@ -112,16 +125,12 @@ export const askTutor = async (question: string, context: LessonContent, history
   }
 };
 
-/**
- * Optimized for Speed: Uses a clean prompt to ensure near-instant speech synthesis.
- */
 export const generateGeminiSpeech = async (text: string, voiceName: string = 'Kore'): Promise<string> => {
   const ai = getAIClient();
-  
   try {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
-      contents: [{ parts: [{ text: `Read this segment: ${text.substring(0, 5000)}` }] }],
+      contents: [{ parts: [{ text: `Read this segment clearly: ${text.substring(0, 5000)}` }] }],
       config: {
         responseModalities: [Modality.AUDIO],
         speechConfig: {
@@ -131,7 +140,6 @@ export const generateGeminiSpeech = async (text: string, voiceName: string = 'Ko
         },
       },
     });
-
     const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
     if (!base64Audio) throw new Error("Audio synthesis returned no data.");
     return base64Audio;

@@ -25,17 +25,17 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ onClose, onUpgrade, targetT
   };
 
   const premiumFeatures = [
-    { title: "Deep Reasoning", desc: "Unlock long-form AI masterclasses with theoretical depth." },
-    { title: "Mastery Analytics", desc: "Detailed tracking of your learning velocity and quiz history." },
-    { title: "Timed Exams", desc: "Test your knowledge under pressure with high-stakes quizzes." },
-    { title: "Unlimited Tutor", desc: "Basic chat support for all generated lessons." }
+    { title: "Exam-Ready Explanations", desc: "Unlock step-by-step logic designed to help you ace university and high school exams." },
+    { title: "Adjust explanation level", desc: "Instantly toggle between simple conceptual 'easy' mode and full-depth 'exam-ready' mode." },
+    { title: "Timed Practice Exams", desc: "Test your knowledge under pressure with high-stakes quizzes synced to your curriculum." },
+    { title: "Unlimited Study Tutor", desc: "Dedicated AI chat support for every single masterclass you generate." }
   ];
 
   const proFeatures = [
-    { title: "Audio Synthesis", desc: "Listen to any masterclass with high-fidelity AI voice generation." },
-    { title: "Elite Difficulty", desc: "Access the 'Advanced' engine for professional-grade subjects." },
-    { title: "Priority Link", desc: "Zero-latency connection to the Gemini 3 Pro reasoning core." },
-    { title: "Neural History", desc: "Infinite archival of every conversation and quiz result." }
+    { title: "Neural Voice Lectures", desc: "Listen to any study topic with human-like AI voice generation while you travel or commute." },
+    { title: "University-Grade Subjects", desc: "Access the 'Advanced' engine for professional, complex, and high-level academic domains." },
+    { title: "Priority AI Link", desc: "Zero-latency connection to our most powerful Gemini 3 Pro reasoning core." },
+    { title: "Infinite Archival", desc: "Secure, permanent storage for every question asked and every quiz score achieved." }
   ];
 
   const activeFeatures = isPro ? proFeatures : premiumFeatures;
@@ -66,7 +66,7 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ onClose, onUpgrade, targetT
             <div className="space-y-1">
               <span className="text-[9px] font-black uppercase tracking-[0.3em] bg-white/20 px-2 py-0.5 rounded">Uplink Upgrade</span>
               <h2 className="text-3xl sm:text-4xl font-black tracking-tighter">{tierName}</h2>
-              <p className="text-indigo-100 text-[10px] sm:text-xs font-bold opacity-80 uppercase tracking-widest">Protocol Version 2.5.0</p>
+              <p className="text-indigo-100 text-[10px] sm:text-xs font-bold opacity-80 uppercase tracking-widest">Protocol Version 1.2.0</p>
             </div>
             <button onClick={onClose} className="p-2.5 hover:bg-white/10 rounded-2xl transition-all active:scale-90 border border-white/20">
               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M6 18L18 6M6 6l12 12" /></svg>
