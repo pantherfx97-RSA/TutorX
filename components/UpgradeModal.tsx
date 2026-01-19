@@ -9,26 +9,43 @@ interface UpgradeModalProps {
   targetTier: SubscriptionTier;
 }
 
+type ModalView = 'features' | 'plans' | 'verifying';
 type BillingCycle = 'monthly' | 'yearly';
 
 const UpgradeModal: React.FC<UpgradeModalProps> = ({ onClose, onUpgrade, targetTier }) => {
-  const [hasSelected, setHasSelected] = useState(false);
+  const [view, setView] = useState<ModalView>('features');
   const [verifying, setVerifying] = useState(false);
 
   const isPro = targetTier === SubscriptionTier.PRO;
-  const tierName = isPro ? "PRO ACCESS" : "PREMIUM ACCESS";
+  const tierName = isPro ? "PRO Clearance" : "PREMIUM Clearance";
   
   const price = {
     monthly: isPro ? "R199" : "R99",
     yearly: isPro ? "R1,990" : "R990"
   };
 
+  const premiumFeatures = [
+    { title: "Deep Reasoning", desc: "Unlock long-form AI masterclasses with theoretical depth." },
+    { title: "Mastery Analytics", desc: "Detailed tracking of your learning velocity and quiz history." },
+    { title: "Timed Exams", desc: "Test your knowledge under pressure with high-stakes quizzes." },
+    { title: "Unlimited Tutor", desc: "Basic chat support for all generated lessons." }
+  ];
+
+  const proFeatures = [
+    { title: "Audio Synthesis", desc: "Listen to any masterclass with high-fidelity AI voice generation." },
+    { title: "Elite Difficulty", desc: "Access the 'Advanced' engine for professional-grade subjects." },
+    { title: "Priority Link", desc: "Zero-latency connection to the Gemini 3 Pro reasoning core." },
+    { title: "Neural History", desc: "Infinite archival of every conversation and quiz result." }
+  ];
+
+  const activeFeatures = isPro ? proFeatures : premiumFeatures;
+
   const handlePlanSelection = (cycle: BillingCycle) => {
     const tierKey = isPro ? 'PRO' : 'PREMIUM';
     const cycleKey = cycle === 'monthly' ? 'MONTHLY' : 'YEARLY';
     const link = YOCO_LINKS[tierKey][cycleKey];
     window.open(link, '_blank');
-    setHasSelected(true);
+    setView('verifying');
   };
 
   const confirmPayment = () => {
@@ -37,71 +54,120 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ onClose, onUpgrade, targetT
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-slate-950/90 backdrop-blur-xl animate-in fade-in duration-300">
       <div className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 border border-slate-100 dark:border-slate-800">
         
-        <div className={`p-6 sm:p-10 text-white ${isPro ? 'bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-700' : 'bg-gradient-to-br from-indigo-500 to-indigo-600'}`}>
-          <div className="flex justify-between items-start">
+        {/* Header */}
+        <div className={`p-6 sm:p-10 text-white relative ${isPro ? 'bg-indigo-600' : 'bg-indigo-500'}`}>
+          <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+             <svg viewBox="0 0 64 64" className="w-32 h-32 fill-current"><path d="M18 18L46 46M46 18L18 46" stroke="white" strokeWidth="8" strokeLinecap="round" /></svg>
+          </div>
+          <div className="flex justify-between items-start relative z-10">
             <div className="space-y-1">
-              <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-[0.25em] bg-white/20 px-2 py-0.5 rounded">Select Plan</span>
-              <h2 className="text-2xl sm:text-4xl font-black">{tierName}</h2>
-              <p className="text-indigo-100 text-[10px] sm:text-xs font-medium opacity-90">Maximize your learning potential today.</p>
+              <span className="text-[9px] font-black uppercase tracking-[0.3em] bg-white/20 px-2 py-0.5 rounded">Uplink Upgrade</span>
+              <h2 className="text-3xl sm:text-4xl font-black tracking-tighter">{tierName}</h2>
+              <p className="text-indigo-100 text-[10px] sm:text-xs font-bold opacity-80 uppercase tracking-widest">Protocol Version 2.5.0</p>
             </div>
-            <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+            <button onClick={onClose} className="p-2.5 hover:bg-white/10 rounded-2xl transition-all active:scale-90 border border-white/20">
               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
           </div>
         </div>
 
-        <div className="p-6 sm:p-10">
-          {!hasSelected ? (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                <button onClick={() => handlePlanSelection('monthly')} className="group p-5 sm:p-6 rounded-[2rem] border-2 border-slate-100 dark:border-slate-800 hover:border-indigo-500 bg-slate-50 dark:bg-slate-950 transition-all text-left active:scale-[0.98]">
-                  <span className="text-[8px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest">Monthly</span>
-                  <div className="mt-1 text-2xl sm:text-3xl font-black text-slate-900 dark:text-white leading-none">{price.monthly}<span className="text-xs font-normal text-slate-400">/mo</span></div>
-                  <div className="mt-4 py-2 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-center text-[10px] font-black uppercase tracking-widest group-hover:bg-indigo-600 group-hover:text-white transition-colors">Select</div>
-                </button>
-
-                <button onClick={() => handlePlanSelection('yearly')} className="group p-5 sm:p-6 rounded-[2rem] border-2 border-indigo-100 dark:border-indigo-900/30 hover:border-indigo-500 bg-white dark:bg-slate-900 transition-all text-left shadow-sm active:scale-[0.98] relative overflow-hidden">
-                  <div className="absolute top-2 right-2 bg-indigo-600 text-white text-[7px] font-black px-1.5 py-0.5 rounded uppercase">Save 20%</div>
-                  <span className="text-[8px] sm:text-[10px] font-black text-indigo-500 uppercase tracking-widest">Best Value</span>
-                  <div className="mt-1 text-2xl sm:text-3xl font-black text-slate-900 dark:text-white leading-none">{price.yearly}<span className="text-xs font-normal text-slate-400">/yr</span></div>
-                  <div className="mt-4 py-2 bg-indigo-600 text-white rounded-xl text-center text-[10px] font-black uppercase tracking-widest group-hover:bg-indigo-700 shadow-lg">Select</div>
-                </button>
-              </div>
-
-              <div className="bg-slate-50 dark:bg-slate-950 p-5 rounded-3xl border border-slate-100 dark:border-slate-800">
-                <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Premium Inclusions</h4>
-                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {["Timed Exams", "Deep-Dive Insights", "Priority AI Curation", "No-Limit Chatbot"].map((f, i) => (
-                    <li key={i} className="flex items-center gap-2 text-[10px] sm:text-xs text-slate-600 dark:text-slate-400 font-bold">
-                      <svg className="w-4 h-4 text-indigo-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
-                      {f}
-                    </li>
+        <div className="p-6 sm:p-10 max-h-[70vh] overflow-y-auto no-scrollbar">
+          {view === 'features' && (
+            <div className="space-y-8 animate-in slide-in-from-bottom-4">
+              <div className="space-y-4">
+                <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Tier Advantages</h3>
+                <div className="grid grid-cols-1 gap-4">
+                  {activeFeatures.map((f, i) => (
+                    <div key={i} className="flex gap-4 p-5 bg-slate-50 dark:bg-slate-950 rounded-3xl border border-slate-100 dark:border-slate-800 transition-all hover:border-indigo-500 group">
+                      <div className="w-12 h-12 shrink-0 rounded-2xl bg-white dark:bg-slate-900 flex items-center justify-center shadow-sm border border-slate-100 dark:border-slate-800 group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                      </div>
+                      <div className="space-y-1">
+                        <h4 className="font-black text-sm text-slate-800 dark:text-slate-100">{f.title}</h4>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">{f.desc}</p>
+                      </div>
+                    </div>
                   ))}
-                </ul>
+                </div>
               </div>
-            </div>
-          ) : (
-            <div className="text-center py-6 sm:py-10 space-y-6 animate-in slide-in-from-bottom-4">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-amber-50 dark:bg-amber-900/20 rounded-full mx-auto flex items-center justify-center border-4 border-amber-100 dark:border-amber-800 animate-pulse-soft">
-                <svg className="h-8 w-8 sm:h-10 sm:w-10 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+
+              <div className="pt-4">
+                <button 
+                  onClick={() => setView('plans')}
+                  className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl hover:bg-indigo-700 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                >
+                  Configure Billing Plan
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M14 5l7 7-7 7" /></svg>
+                </button>
               </div>
-              <div>
-                <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">Secure Link Sent</h3>
-                <p className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-sm mt-2 font-medium">Verify your project in the Yoco portal to continue.</p>
-              </div>
-              <button onClick={confirmPayment} disabled={verifying} className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl hover:bg-indigo-700 transition-all active:scale-[0.98] flex items-center justify-center gap-2">
-                {verifying ? <svg className="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> : "Already Paid? Verify Now"}
-              </button>
-              <button onClick={() => setHasSelected(false)} className="text-[10px] font-black text-slate-400 hover:text-indigo-600 uppercase tracking-widest transition-colors">Return to Selection</button>
             </div>
           )}
-          
-          <div className="mt-8 flex items-center justify-center gap-2 opacity-30 grayscale contrast-125">
-            <span className="text-[8px] font-black uppercase tracking-widest text-slate-500">Secured with Yoco</span>
-          </div>
+
+          {view === 'plans' && (
+            <div className="space-y-8 animate-in slide-in-from-bottom-4">
+              <div className="text-center space-y-2">
+                <h3 className="text-xl font-black text-slate-800 dark:white">Choose your velocity</h3>
+                <p className="text-xs text-slate-500 font-medium">Select a cycle to initialize secure Yoco payment.</p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <button onClick={() => handlePlanSelection('monthly')} className="group p-6 rounded-[2rem] border-2 border-slate-100 dark:border-slate-800 hover:border-indigo-500 bg-slate-50 dark:bg-slate-950 transition-all text-left active:scale-[0.98] flex flex-col justify-between">
+                  <div>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Monthly Cycle</span>
+                    <div className="mt-1 text-3xl font-black text-slate-900 dark:text-white leading-none">{price.monthly}<span className="text-xs font-normal text-slate-400">/mo</span></div>
+                  </div>
+                  <div className="mt-6 py-3 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-center text-[10px] font-black uppercase tracking-widest group-hover:bg-indigo-600 group-hover:text-white transition-colors">Select Monthly</div>
+                </button>
+
+                <button onClick={() => handlePlanSelection('yearly')} className="group p-6 rounded-[2rem] border-2 border-indigo-500 bg-white dark:bg-slate-900 transition-all text-left shadow-2xl active:scale-[0.98] relative overflow-hidden flex flex-col justify-between">
+                  <div className="absolute top-3 right-3 bg-indigo-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter">Save 20%</div>
+                  <div>
+                    <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Yearly Cycle</span>
+                    <div className="mt-1 text-3xl font-black text-slate-900 dark:text-white leading-none">{price.yearly}<span className="text-xs font-normal text-slate-400">/yr</span></div>
+                  </div>
+                  <div className="mt-6 py-3 bg-indigo-600 text-white rounded-xl text-center text-[10px] font-black uppercase tracking-widest group-hover:bg-indigo-700 shadow-lg">Select Yearly</div>
+                </button>
+              </div>
+              
+              <button onClick={() => setView('features')} className="w-full text-[10px] font-black text-slate-400 hover:text-indigo-500 uppercase tracking-[0.2em] transition-colors">← Back to Features</button>
+            </div>
+          )}
+
+          {view === 'verifying' && (
+            <div className="text-center py-12 space-y-8 animate-in slide-in-from-bottom-4">
+              <div className="w-24 h-24 bg-amber-50 dark:bg-amber-900/20 rounded-full mx-auto flex items-center justify-center border-4 border-amber-100 dark:border-amber-800">
+                <div className="relative">
+                  <svg className="h-12 w-12 text-amber-500 animate-pulse-soft" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Payment Link Dispatched</h3>
+                <p className="text-slate-500 dark:text-slate-400 text-xs font-medium leading-relaxed px-6">We've opened the secure Yoco checkout in a new tab. Please complete the transaction there.</p>
+              </div>
+              <div className="space-y-4 px-4">
+                <button 
+                  onClick={confirmPayment} 
+                  disabled={verifying} 
+                  className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-[0.25em] shadow-xl hover:bg-indigo-700 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
+                >
+                  {verifying ? (
+                    <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                  ) : "I've Paid — Activate Link"}
+                </button>
+                <button onClick={() => setView('plans')} className="text-[10px] font-black text-slate-400 hover:text-indigo-600 uppercase tracking-widest transition-colors">Return to Plans</button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Payment Trust Footer */}
+        <div className="p-6 bg-slate-50 dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800 flex items-center justify-center gap-6 opacity-40 grayscale group-hover:grayscale-0 transition-all">
+           <span className="text-[8px] font-black uppercase tracking-[0.4em] text-slate-500">Secured via Yoco API</span>
+           <div className="w-1 h-1 rounded-full bg-slate-300"></div>
+           <span className="text-[8px] font-black uppercase tracking-[0.4em] text-slate-500">South African Encryption</span>
         </div>
       </div>
     </div>

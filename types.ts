@@ -49,6 +49,7 @@ export interface UserProfile {
 }
 
 export enum AppScreen {
+  LANDING = 'landing',
   LOGIN = 'login',
   REGISTER = 'register',
   FORGOT_PASSWORD = 'forgot_password',

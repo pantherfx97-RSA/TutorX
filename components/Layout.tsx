@@ -18,14 +18,15 @@ const Layout: React.FC<LayoutProps> = ({ children, userEmail, onLogout, onNaviga
       <header className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 sticky top-0 z-50">
         <div className="max-w-4xl mx-auto flex justify-between items-center h-16 px-4">
           <div 
-            className="flex items-center space-x-2 cursor-pointer group"
+            className="flex items-center space-x-3 cursor-pointer group"
             onClick={() => onNavigate?.('dashboard' as any)}
           >
-            {/* Minimalist version of the new logo */}
-            <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200 dark:shadow-none transform transition-transform group-hover:rotate-6">
-              <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-5 h-5">
-                <path d="M14 14L50 50" stroke="white" strokeWidth="10" strokeLinecap="round" />
-                <path d="M50 14L14 50" stroke="white" strokeWidth="10" strokeLinecap="round" strokeOpacity="0.5" />
+            {/* New Neural-X Logo */}
+            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200 dark:shadow-none transform transition-all group-hover:rotate-12 group-hover:scale-110 active:scale-90">
+              <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-6 h-6">
+                <path d="M18 18L46 46" stroke="white" strokeWidth="8" strokeLinecap="round" />
+                <path d="M46 18L18 46" stroke="white" strokeWidth="8" strokeLinecap="round" strokeOpacity="0.4" />
+                <circle cx="32" cy="32" r="5" fill="white" className="animate-pulse" />
               </svg>
             </div>
             <h1 className="text-xl font-black tracking-tighter text-slate-800 dark:text-slate-100">
@@ -37,7 +38,7 @@ const Layout: React.FC<LayoutProps> = ({ children, userEmail, onLogout, onNaviga
             {/* Dark Mode Toggle */}
             <button
               onClick={toggleDarkMode}
-              className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors border border-slate-200 dark:border-slate-700"
+              className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all border border-slate-200 dark:border-slate-700 active:scale-90"
               title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
             >
               {isDarkMode ? (
@@ -55,7 +56,7 @@ const Layout: React.FC<LayoutProps> = ({ children, userEmail, onLogout, onNaviga
               <>
                 <button 
                   onClick={() => onNavigate?.('profile' as any)}
-                  className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors border border-slate-200 dark:border-slate-700"
+                  className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all border border-slate-200 dark:border-slate-700 active:scale-90"
                   title="Profile"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -64,7 +65,7 @@ const Layout: React.FC<LayoutProps> = ({ children, userEmail, onLogout, onNaviga
                 </button>
                 <button 
                   onClick={onLogout}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-2xl text-sm font-black transition-all active:scale-95 shadow-lg shadow-indigo-100 dark:shadow-none"
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-2xl text-sm font-black transition-all active:scale-95 shadow-lg shadow-indigo-100 dark:shadow-none"
                 >
                   Logout
                 </button>
@@ -90,7 +91,7 @@ const Layout: React.FC<LayoutProps> = ({ children, userEmail, onLogout, onNaviga
             <span className="w-1 h-1 bg-slate-300 dark:bg-slate-700 rounded-full my-auto"></span>
             <span>AI Masterclass Engine</span>
             <span className="w-1 h-1 bg-slate-300 dark:bg-slate-700 rounded-full my-auto"></span>
-            <span>Build v1.0.4</span>
+            <span>Build v1.1.0</span>
           </div>
         </div>
       </footer>
