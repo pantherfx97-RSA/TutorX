@@ -13,8 +13,9 @@ export const mockAuth = {
       completedTopics: [],
       quizScores: [],
       tier: SubscriptionTier.FREE,
-      // Fixed: Add required streak property
-      streak: 0
+      streak: 0,
+      questionsAskedToday: 0,
+      uploadedDocuments: []
     };
     mockAuth.currentUser = user;
     localStorage.setItem('tutorx_user', JSON.stringify(user));
@@ -29,8 +30,9 @@ export const mockAuth = {
       completedTopics: [],
       quizScores: [],
       tier: SubscriptionTier.FREE,
-      // Fixed: Add required streak property
-      streak: 0
+      streak: 0,
+      questionsAskedToday: 0,
+      uploadedDocuments: []
     };
     mockAuth.currentUser = user;
     localStorage.setItem('tutorx_user', JSON.stringify(user));

@@ -34,7 +34,16 @@ const Layout: React.FC<LayoutProps> = ({ children, userEmail, onLogout, onNaviga
             </h1>
           </div>
           
-          <div className="flex items-center space-x-2 sm:space-x-4">
+          <div className="flex items-center space-x-1 sm:space-x-3">
+            {userEmail && (
+              <button
+                onClick={() => onNavigate?.('plans' as any)}
+                className="hidden sm:flex items-center gap-2 px-3 py-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl text-[10px] font-black uppercase tracking-widest border border-indigo-100 dark:border-indigo-800 hover:bg-indigo-100 transition-all active:scale-95"
+              >
+                Membership
+              </button>
+            )}
+
             {/* Dark Mode Toggle */}
             <button
               onClick={toggleDarkMode}
@@ -65,7 +74,7 @@ const Layout: React.FC<LayoutProps> = ({ children, userEmail, onLogout, onNaviga
                 </button>
                 <button 
                   onClick={onLogout}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-2xl text-sm font-black transition-all active:scale-95 shadow-lg shadow-indigo-100 dark:shadow-none"
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-2xl text-sm font-black transition-all active:scale-95 shadow-lg shadow-indigo-100 dark:shadow-none hidden sm:block"
                 >
                   Logout
                 </button>

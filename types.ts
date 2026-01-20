@@ -37,6 +37,13 @@ export interface QuizScoreRecord {
   difficulty: DifficultyLevel;
 }
 
+export interface UserDocument {
+  name: string;
+  type: string;
+  data: string; // base64
+  date: number;
+}
+
 export interface UserProfile {
   email: string;
   displayName?: string;
@@ -46,6 +53,9 @@ export interface UserProfile {
   tier: SubscriptionTier;
   streak: number;
   lastActiveDate?: number;
+  questionsAskedToday: number;
+  lastQuestionDate?: number;
+  uploadedDocuments?: UserDocument[];
 }
 
 export enum AppScreen {
@@ -55,5 +65,6 @@ export enum AppScreen {
   FORGOT_PASSWORD = 'forgot_password',
   DASHBOARD = 'dashboard',
   PROFILE = 'profile',
-  LEARNING = 'learning'
+  LEARNING = 'learning',
+  PLANS = 'plans'
 }

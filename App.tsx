@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { AppScreen, UserProfile, DifficultyLevel, LessonContent, SubscriptionTier, QuizScoreRecord } from './types';
+import { AppScreen, UserProfile, DifficultyLevel, LessonContent, SubscriptionTier, QuizScoreRecord, UserDocument } from './types';
 import { mockAuth, mockFirestore } from './services/firebaseService';
 import { generateLesson } from './services/geminiService';
 import Layout from './components/Layout';
@@ -10,6 +10,7 @@ import Profile from './components/Profile';
 import LessonView from './components/LessonView';
 import UpgradeModal from './components/UpgradeModal';
 import LandingPage from './components/LandingPage';
+import PlansView from './components/PlansView';
 
 const App: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<AppScreen>(AppScreen.LANDING);
@@ -20,21 +21,22 @@ const App: React.FC = () => {
   const [activeLesson, setActiveLesson] = useState<LessonContent | null>(null);
   const [activeDifficulty, setActiveDifficulty] = useState<DifficultyLevel>(DifficultyLevel.BEGINNER);
   
-  // Theme management
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const stored = localStorage.getItem('tutorx_theme');
     if (stored) return stored === 'dark';
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
 
-  // Subscription management
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [targetTier, setTargetTier] = useState<SubscriptionTier>(SubscriptionTier.PREMIUM);
+
+  const toggleDarkMode = () => setIsDarkMode(prev => !prev);
 
   useEffect(() => {
     const stored = mockAuth.getStoredUser();
     if (stored) {
-      setUser(stored);
+      const resetUser = checkDailyReset(stored);
+      setUser(resetUser);
       setCurrentScreen(AppScreen.DASHBOARD);
     }
   }, []);
@@ -49,7 +51,16 @@ const App: React.FC = () => {
     }
   }, [isDarkMode]);
 
-  const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
+  const checkDailyReset = (profile: UserProfile): UserProfile => {
+    const now = Date.now();
+    const isNewDay = !profile.lastQuestionDate || 
+      new Date(profile.lastQuestionDate).toDateString() !== new Date(now).toDateString();
+    
+    if (isNewDay) {
+      return { ...profile, questionsAskedToday: 0 };
+    }
+    return profile;
+  };
 
   const handleAuth = async (email: string, pass: string) => {
     setAuthLoading(true);
@@ -61,13 +72,12 @@ const App: React.FC = () => {
       } else {
         loggedUser = await mockAuth.login(email, pass);
       }
-      
       if (loggedUser) {
-        setUser(loggedUser);
+        setUser(checkDailyReset(loggedUser));
         setCurrentScreen(AppScreen.DASHBOARD);
       }
     } catch (err) {
-      setError('Authentication failed. Please check your credentials and try again.');
+      setError('Authentication failed.');
     } finally {
       setAuthLoading(false);
     }
@@ -80,16 +90,16 @@ const App: React.FC = () => {
     setActiveLesson(null);
   };
 
-  const startLearning = async (topic: string, level: DifficultyLevel) => {
+  const startLearning = async (topic: string, level: DifficultyLevel, academicLevel: string = "High School", examType: string = "Standard") => {
     setLoading(true);
     setActiveDifficulty(level);
     try {
-      const content = await generateLesson(topic, level, user?.tier || SubscriptionTier.FREE);
+      const fullPrompt = `Subject: ${topic}\nLevel: ${academicLevel}\nExam Type: ${examType}`;
+      const content = await generateLesson(fullPrompt, level, user?.tier || SubscriptionTier.FREE);
       setActiveLesson(content);
       setCurrentScreen(AppScreen.LEARNING);
     } catch (err: any) {
-      console.error("AI Engine Error:", err);
-      alert(`AI Engine Notice: ${err.message || "An error occurred while connecting to the AI engine."}`);
+      alert(`AI Engine Notice: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -97,7 +107,6 @@ const App: React.FC = () => {
 
   const recordActivity = async (score: number, isMasteryOnly: boolean = false) => {
     if (!user || !activeLesson) return;
-    
     const now = Date.now();
     const isNewDay = !user.lastActiveDate || 
       new Date(user.lastActiveDate).toDateString() !== new Date(now).toDateString();
@@ -117,28 +126,29 @@ const App: React.FC = () => {
       streak: isNewDay ? (user.streak || 0) + 1 : (user.streak || 1),
       lastActiveDate: now
     };
-    
     setUser(updatedUser);
     localStorage.setItem('tutorx_user', JSON.stringify(updatedUser));
-    await mockFirestore.saveProgress(user.email, updatedUser);
   };
 
-  const completeLesson = (score: number) => recordActivity(score);
-  const markMastery = (topic: string) => recordActivity(100, true);
-
-  const handleUpgrade = async (tier: SubscriptionTier) => {
-    try {
-      const updatedUser = await mockAuth.upgradeTier(tier);
-      setUser(updatedUser);
-      setShowUpgrade(false);
-    } catch (err) {
-      alert("Payment verification failed. Please contact support.");
-    }
+  const handleQuestionAsked = () => {
+    if (!user) return;
+    const updatedUser = {
+      ...user,
+      questionsAskedToday: user.questionsAskedToday + 1,
+      lastQuestionDate: Date.now()
+    };
+    setUser(updatedUser);
+    localStorage.setItem('tutorx_user', JSON.stringify(updatedUser));
   };
 
-  const triggerUpgrade = (tier: SubscriptionTier) => {
-    setTargetTier(tier);
-    setShowUpgrade(true);
+  const handleDocumentUpload = (doc: UserDocument) => {
+    if (!user) return;
+    const updatedUser = {
+      ...user,
+      uploadedDocuments: [...(user.uploadedDocuments || []), doc]
+    };
+    setUser(updatedUser);
+    localStorage.setItem('tutorx_user', JSON.stringify(updatedUser));
   };
 
   const renderContent = () => {
@@ -163,32 +173,50 @@ const App: React.FC = () => {
         toggleDarkMode={toggleDarkMode}
       >
         {currentScreen === AppScreen.DASHBOARD && (
-          <Dashboard user={user} onStartLearning={startLearning} onTriggerUpgrade={triggerUpgrade} loading={loading} />
+          <Dashboard user={user} onStartLearning={startLearning} onTriggerUpgrade={(tier) => { setTargetTier(tier); setShowUpgrade(true); }} loading={loading} />
         )}
         {currentScreen === AppScreen.LEARNING && activeLesson && (
           <LessonView 
             content={activeLesson} 
-            onComplete={completeLesson}
-            onMarkMastery={markMastery}
+            onComplete={recordActivity}
+            onMarkMastery={(topic) => recordActivity(100, true)}
             onNavigate={(topic) => startLearning(topic, DifficultyLevel.BEGINNER)} 
-            onTriggerUpgrade={triggerUpgrade}
+            onTriggerUpgrade={(tier) => { setTargetTier(tier); setShowUpgrade(true); }}
             onBack={() => setCurrentScreen(AppScreen.DASHBOARD)}
             tier={user.tier}
+            questionsAskedToday={user.questionsAskedToday}
+            onQuestionAsked={handleQuestionAsked}
           />
         )}
-        {currentScreen === AppScreen.PROFILE && <Profile user={user} />}
+        {currentScreen === AppScreen.PROFILE && (
+          <Profile 
+            user={user} 
+            onUpload={handleDocumentUpload} 
+            onTriggerUpgrade={(tier) => { setTargetTier(tier); setShowUpgrade(true); }}
+          />
+        )}
+        {currentScreen === AppScreen.PLANS && (
+          <PlansView 
+            currentTier={user.tier} 
+            onTriggerUpgrade={(tier) => { setTargetTier(tier); setShowUpgrade(true); }}
+          />
+        )}
       </Layout>
     );
   };
 
   return (
-    <div className="antialiased selection:bg-indigo-100 selection:text-indigo-900 dark:selection:bg-indigo-900/40 dark:selection:text-indigo-200">
+    <div className="antialiased">
       {renderContent()}
       {showUpgrade && (
         <UpgradeModal 
           targetTier={targetTier} 
           onClose={() => setShowUpgrade(false)} 
-          onUpgrade={handleUpgrade} 
+          onUpgrade={async (tier) => {
+            const upgraded = await mockAuth.upgradeTier(tier);
+            setUser(upgraded);
+            setShowUpgrade(false);
+          }} 
         />
       )}
     </div>

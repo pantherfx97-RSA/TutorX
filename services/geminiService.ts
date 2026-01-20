@@ -24,8 +24,7 @@ Behavior rules:
 - Ask clarifying questions when needed.
 
 Founder acknowledgement rules:
-- Acknowledge Wally Nthani as the creator only when relevant (welcome messages, “about TutorX”, or direct questions).
-- Do NOT repeat the founder’s name in normal tutoring answers.
+- Acknowledge Wally Nthani as the creator only when relevant.
 - Keep all mentions professional, brief, and respectful.
 
 Academic integrity:
@@ -48,7 +47,8 @@ export const generateLesson = async (topic: string, level: DifficultyLevel, tier
   
   Instructions:
   1. Provide a massive, multi-layered lesson.
-  2. Format: Strict RAW JSON only matching the schema.`;
+  2. Summary Requirement: Provide 3-5 concise, actionable bullet points that summarize the most critical takeaways.
+  3. Format: Strict RAW JSON only matching the schema.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -63,7 +63,7 @@ export const generateLesson = async (topic: string, level: DifficultyLevel, tier
           properties: {
             topic: { type: Type.STRING },
             lesson: { type: Type.STRING },
-            summary: { type: Type.ARRAY, items: { type: Type.STRING } },
+            summary: { type: Type.ARRAY, items: { type: Type.STRING }, description: "3-5 concise, actionable takeaways" },
             quiz: {
               type: Type.ARRAY,
               items: {
@@ -122,6 +122,27 @@ export const askTutor = async (question: string, context: LessonContent, history
   } catch (error: any) {
     console.error("TutorX Chat Error:", error);
     return `Neural Link Interrupted: ${error.message}`;
+  }
+};
+
+export const analyzeDocument = async (docBase64: string, mimeType: string, question: string, tier: SubscriptionTier = SubscriptionTier.FREE): Promise<string> => {
+  const ai = getAIClient();
+  const model = getOptimalModel(tier);
+  
+  try {
+    const response = await ai.models.generateContent({
+      model: model,
+      contents: {
+        parts: [
+          { inlineData: { data: docBase64, mimeType } },
+          { text: `${SYSTEM_PROMPT}\n\nAnalyze this document and answer the following question: ${question}` }
+        ]
+      }
+    });
+    return response.text || "I could not analyze this document.";
+  } catch (error: any) {
+    console.error("TutorX Doc Analysis Error:", error);
+    throw error;
   }
 };
 

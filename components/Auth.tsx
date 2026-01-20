@@ -63,7 +63,7 @@ const Auth: React.FC<AuthProps> = ({ type, onAuth, onNavigate, loading, error })
             <input
               type="email"
               required
-              className="w-full px-5 py-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder-slate-400 text-sm"
+              className="w-full px-5 py-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder-slate-400 text-sm font-semibold"
               placeholder="operator@tutorx.ai"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -76,7 +76,7 @@ const Auth: React.FC<AuthProps> = ({ type, onAuth, onNavigate, loading, error })
               <input
                 type="password"
                 required
-                className="w-full px-5 py-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder-slate-400 text-sm"
+                className="w-full px-5 py-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder-slate-400 text-sm font-semibold"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -106,7 +106,7 @@ const Auth: React.FC<AuthProps> = ({ type, onAuth, onNavigate, loading, error })
       </div>
 
       <div className="border-t border-slate-100 dark:border-slate-800 pt-6 text-center">
-        <p className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest leading-relaxed">{DEVELOPER_CREDIT}</p>
+        <p className="text-[9px] sm:text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest leading-relaxed">{DEVELOPER_CREDIT}</p>
       </div>
     </div>
   );
