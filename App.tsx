@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { AppScreen, UserProfile, DifficultyLevel, LessonContent, SubscriptionTier, QuizScoreRecord } from './types';
 import { mockAuth, mockFirestore } from './services/firebaseService';
 import { generateLesson } from './services/geminiService';
@@ -191,6 +192,7 @@ const App: React.FC = () => {
           onUpgrade={handleUpgrade} 
         />
       )}
+      <Analytics />
     </div>
   );
 };
