@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { AppScreen, UserProfile, DifficultyLevel, LessonContent, SubscriptionTier, QuizScoreRecord, UserDocument } from './types';
 import { mockAuth, mockFirestore } from './services/firebaseService';
 import { generateLesson } from './services/geminiService';
@@ -219,6 +220,7 @@ const App: React.FC = () => {
           }} 
         />
       )}
+      <Analytics />
     </div>
   );
 };
