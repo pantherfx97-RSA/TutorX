@@ -88,7 +88,7 @@ const LessonView: React.FC<LessonViewProps> = ({
   const [lessonCompleted, setLessonCompleted] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
-  const [tutorMode, setTutorMode] = useState<TutorMode>('auto'); // Default changed to Auto
+  const [tutorMode, setTutorMode] = useState<TutorMode>('auto');
 
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
@@ -373,19 +373,6 @@ const LessonView: React.FC<LessonViewProps> = ({
                     <span className="relative z-10 flex items-center justify-center gap-1.5">
                        🤖 Auto <span className="text-[7px] bg-white/20 px-1 rounded">Recommended</span>
                     </span>
-                    {tutorMode === 'auto' && <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-rotate-slow pointer-events-none opacity-50"></div>}
-                  </button>
-                  <button 
-                    onClick={() => setTutorMode('general')}
-                    className={`flex-1 min-w-[80px] py-2 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all ${tutorMode === 'general' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400'}`}
-                  >
-                    General
-                  </button>
-                  <button 
-                    onClick={() => setTutorMode('exam')}
-                    className={`flex-1 min-w-[80px] py-2 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all ${tutorMode === 'exam' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400'}`}
-                  >
-                    Exam
                   </button>
                   <button 
                     onClick={() => setTutorMode('university')}
@@ -398,6 +385,12 @@ const LessonView: React.FC<LessonViewProps> = ({
                     className={`flex-1 min-w-[80px] py-2 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all ${tutorMode === 'eli10' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400'}`}
                   >
                     ELI10
+                  </button>
+                  <button 
+                    onClick={() => setTutorMode('exam')}
+                    className={`flex-1 min-w-[80px] py-2 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all ${tutorMode === 'exam' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400'}`}
+                  >
+                    Exam
                   </button>
                   <button 
                     onClick={() => setTutorMode('slow')}
@@ -413,13 +406,12 @@ const LessonView: React.FC<LessonViewProps> = ({
                   </button>
                 </div>
                 
-                <p className="text-[9px] font-bold text-slate-500 px-1 leading-relaxed">
+                <p className="text-[9px] font-bold text-slate-500 px-1 leading-relaxed animate-in fade-in duration-300">
                   {tutorMode === 'auto' && "Intelligently adjusts between all modes based on your question's complexity."}
-                  {tutorMode === 'general' && "Standard conversational learning logic."}
-                  {tutorMode === 'exam' && "Strict, keyword-focused exam prep protocol."}
-                  {tutorMode === 'university' && "In-depth academic reasoning and theory."}
-                  {tutorMode === 'eli10' && "Explained like you're 10. Simple and fun analogies."}
-                  {tutorMode === 'slow' && "Simplified language, small steps, and high patience."}
+                  {tutorMode === 'university' && "Academic reasoning, correct terminology, and theoretical context."}
+                  {tutorMode === 'eli10' && "Complex topics explained simply using analogies for a child's mindset."}
+                  {tutorMode === 'exam' && "Strict, keyword-focused exam prep protocol for higher marks."}
+                  {tutorMode === 'slow' && "Simplified language, small steps, and extreme patience."}
                   {tutorMode === 'quick' && "Fast summaries and formulas for rapid revision."}
                 </p>
               </div>
@@ -448,10 +440,10 @@ const LessonView: React.FC<LessonViewProps> = ({
                     onChange={(e) => setChatInput(e.target.value)} 
                     placeholder={
                       tutorMode === 'auto' ? "Ask anything, I'll adjust..." :
+                      tutorMode === 'university' ? "Academic inquiry..." :
+                      tutorMode === 'eli10' ? "Explain like I'm 10..." :
                       tutorMode === 'slow' ? "Ask something simply..." : 
                       tutorMode === 'exam' ? "Ask an exam-focused question..." : 
-                      tutorMode === 'university' ? "Academic inquiry..." :
-                      tutorMode === 'eli10' ? "Ask me anything, like a story..." :
                       tutorMode === 'quick' ? "Revision question..." :
                       "Ask TutorX anything..."
                     } 

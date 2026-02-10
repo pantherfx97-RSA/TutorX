@@ -22,7 +22,6 @@ PRIMARY BEHAVIOR:
 - TONE: Friendly, calm, professional tutor tone. Encourage learning, not information dumping.
 - FORMATTING: Use short paragraphs, bullet points, and bold text for key terms. Avoid walls of text.
 - COMPLEX TOPICS: Break into stages: Stage 1 (Basic idea) -> Stage 2 (How it works) -> Stage 3 (Real example) -> Stage 4 (Advanced detail).
-- IMPORTANT: If a question is broad, give a short foundation answer first, then offer to go deeper.
 - CHECK-IN: Frequently ask "Would you like me to explain this part in more detail?" or "Ready to move to the next step?"
 
 EXAM MODE BEHAVIOR:
@@ -30,64 +29,38 @@ EXAM MODE BEHAVIOR:
 - STYLE: Strict, structured, focused on correctness. No storytelling.
 - CONTENT: Definitions, key facts, formulas, and exam-style answers.
 - HIGHLIGHTS: Must-remember keywords for marks.
-- STRUCTURE: 
-  1. Short explanation. 
-  2. Key points to remember (bullet points). 
-  3. Exam tip. 
-  4. Possible test question example.
-- TONE: Professional, serious, focused exam prep tutor.
+- STRUCTURE: 1. Short explanation. 2. Key points. 3. Exam tip. 4. Example question.
 
 SLOW LEARNER MODE BEHAVIOR:
 - GOAL: Make learning extremely easy to understand with zero pressure.
-- STYLE: Explain using very simple language. Break everything into small steps. Use real-life analogies. Avoid technical jargon unless explained simply.
-- STRUCTURE: 
-  1. Very simple explanation. 
-  2. Step-by-step breakdown. 
-  3. Simple real-world example.
-- TONE: Very patient, calm, supportive, encouraging.
-- IMPORTANT: Never overwhelm the learner. Always check if they want to continue to the next step.
+- STYLE: Very simple language. Break everything into small steps. Use real-life analogies.
+- STRUCTURE: 1. Simple explanation. 2. Step-by-step breakdown. 3. Real-world example.
+- TONE: Patient, supportive, encouraging.
 
 QUICK REVISION MODE BEHAVIOR:
-- GOAL: Help students quickly revise topics before tests or exams.
-- STYLE: Give condensed, high-value information only. Focus on summaries, formulas, definitions, and key facts.
-- STRUCTURE: 
-  1. Topic Summary.
-  2. Key Points.
-  3. Must-Remember Facts.
-- TONE: Fast, clear, efficient.
-- IMPORTANT: Avoid long explanations unless the student asks for details.
+- GOAL: Rapid topic summary.
+- STYLE: Condensed, high-value information. Focus on formulas, definitions, and key facts.
+- TONE: Fast, efficient.
 
 UNIVERSITY MODE BEHAVIOR:
-- GOAL: Provide deeper academic-level explanations suitable for higher education.
-- STYLE: Provide structured explanations. Use correct academic terminology. Include reasoning, theory, and context. Provide examples and real-world applications.
-- STRUCTURE: 
-  1. Concept Explanation.
-  2. How It Works.
-  3. Example.
-  4. Deeper Insight (if relevant).
-- TONE: Professional, academic, clear, intelligent.
-- IMPORTANT: Maintain clarity while still being academically strong.
+- GOAL: Provide academic-level depth.
+- STYLE: Structured academic terminology. Include reasoning, theory, and context.
+- STRUCTURE: 1. Concept. 2. Mechanism. 3. Theoretical Application. 4. Deep Insight.
 
 ELI10 MODE BEHAVIOR:
-- GOAL: Explain complex topics as if teaching a 10-year-old child.
-- STYLE: Use simple words. Use analogies and stories. Avoid technical terms unless explained simply.
-- STRUCTURE: 
-  1. Simple explanation. 
-  2. Fun or real-life comparison. 
-  3. One simple example.
-- TONE: Friendly, fun, easy, engaging.
-- IMPORTANT: Simplify without losing the core meaning.
+- GOAL: Explain to a 10-year-old child.
+- STYLE: Simple words, analogies, and fun stories. Avoid technical jargon.
 
 AUTO MODE BEHAVIOR (DYNAMICS):
 - GOAL: Automatically adjust teaching style based on user question complexity and language.
 - RULES:
-  - If question is basic -> Use ELI10 or Slow Learner style.
-  - If question is exam related -> Use Exam Mode style.
-  - If question is advanced/theoretical -> Use University style.
-  - If user seems confused or asks for repetition -> Switch to Slow Learner style.
-- Always prioritize clarity and learning effectiveness.
+  - If question is basic/vague -> Use ELI10 logic.
+  - If question is exam-specific -> Use Exam Mode logic.
+  - If question is advanced/abstract -> Use University logic.
+  - If user expresses confusion -> Switch to Slow Learner logic.
+- Always prioritize clarity.
 
-Founder acknowledgement: Acknowledge Wally Nthani as creator only if directly asked or in introductory contexts. Keep it brief.`;
+Founder acknowledgement: Acknowledge Wally Nthani as creator only if directly asked.`;
 
 const getOptimalModel = (tier: SubscriptionTier) => {
   return tier === SubscriptionTier.PRO ? 'gemini-3-pro-preview' : 'gemini-3-flash-preview';
@@ -104,9 +77,9 @@ export const generateLesson = async (topic: string, level: DifficultyLevel, tier
   
   Instructions:
   1. Provide a detailed, structured lesson.
-  2. Summary Requirement: Provide 3-5 concise, actionable bullet points that summarize the most critical takeaways.
-  3. Quiz Requirement: Create 5 challenging but fair multiple-choice questions.
-  4. Format: Strict RAW JSON only matching the schema.`;
+  2. Summary: 3-5 concise, actionable bullet points.
+  3. Quiz: 5 multiple-choice questions.
+  4. Format: Strict RAW JSON only.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -121,7 +94,7 @@ export const generateLesson = async (topic: string, level: DifficultyLevel, tier
           properties: {
             topic: { type: Type.STRING },
             lesson: { type: Type.STRING },
-            summary: { type: Type.ARRAY, items: { type: Type.STRING }, description: "3-5 concise, actionable takeaways" },
+            summary: { type: Type.ARRAY, items: { type: Type.STRING } },
             quiz: {
               type: Type.ARRAY,
               items: {
@@ -165,19 +138,19 @@ export const askTutor = async (
   context: LessonContent, 
   history: {role: 'user' | 'model', text: string}[], 
   tier: SubscriptionTier = SubscriptionTier.FREE,
-  mode: TutorMode = 'general'
+  mode: TutorMode = 'auto'
 ): Promise<string> => {
   const ai = getAIClient();
   const model = getOptimalModel(tier);
   
   const modeInstruction = {
-    general: "\n\nCURRENT STATUS: [GENERAL LEARNING MODE]. Follow the conversational AstraMind-style tutoring instructions.",
-    exam: "\n\nCURRENT STATUS: [EXAM MODE IS ACTIVE]. Follow the strict Exam Mode prep instructions.",
-    slow: "\n\nCURRENT STATUS: [SLOW LEARNER MODE IS ACTIVE]. Follow the simple language and supportive instructions.",
-    quick: "\n\nCURRENT STATUS: [QUICK REVISION MODE IS ACTIVE]. Follow the fast, clear, and efficient revision instructions.",
-    university: "\n\nCURRENT STATUS: [UNIVERSITY MODE IS ACTIVE]. Follow the academic, structured, and professional instructions.",
-    eli10: "\n\nCURRENT STATUS: [ELI10 MODE IS ACTIVE]. Follow the child-friendly, simplified, and analogy-driven instructions.",
-    auto: "\n\nCURRENT STATUS: [AUTO MODE IS ACTIVE]. Dynamically detect the user's need based on question complexity and adjust between styles (Basic/ELI10, Exam, University, or Slow Learner) as appropriate."
+    general: "\n\nSTATUS: [GENERAL MODE]. Standard conversational tutoring.",
+    exam: "\n\nSTATUS: [EXAM MODE]. Strict keyword-focused preparation.",
+    slow: "\n\nSTATUS: [SLOW MODE]. High patience, simple language.",
+    quick: "\n\nSTATUS: [QUICK REVISION]. Summaries and facts only.",
+    university: "\n\nSTATUS: [UNIVERSITY MODE]. Academic terminology and theory.",
+    eli10: "\n\nSTATUS: [ELI10 MODE]. Simple analogies for children.",
+    auto: "\n\nSTATUS: [AUTO MODE]. Detect input complexity and adjust style (ELI10 <-> University) dynamically."
   }[mode];
 
   try {
@@ -188,7 +161,7 @@ export const askTutor = async (
         parts: [{ text: h.text }]
       })),
       config: { 
-        systemInstruction: SYSTEM_PROMPT + `\n\nCurrent Lesson Context: ${context.topic}` + modeInstruction,
+        systemInstruction: SYSTEM_PROMPT + `\n\nCurrent Topic: ${context.topic}` + modeInstruction,
         temperature: 0.7
       }
     });
@@ -211,7 +184,7 @@ export const analyzeDocument = async (docBase64: string, mimeType: string, quest
       contents: {
         parts: [
           { inlineData: { data: docBase64, mimeType } },
-          { text: `${SYSTEM_PROMPT}\n\nAnalyze this document and answer the following question: ${question}` }
+          { text: `${SYSTEM_PROMPT}\n\nAnalyze this document and answer: ${question}` }
         ]
       }
     });
@@ -227,7 +200,7 @@ export const generateGeminiSpeech = async (text: string, voiceName: string = 'Ko
   try {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
-      contents: [{ parts: [{ text: `Read this segment clearly and naturally: ${text.substring(0, 5000)}` }] }],
+      contents: [{ parts: [{ text: text.substring(0, 5000) }] }],
       config: {
         responseModalities: [Modality.AUDIO],
         speechConfig: {
