@@ -7,9 +7,11 @@ export enum DifficultyLevel {
 
 export enum SubscriptionTier {
   FREE = 'FREE',
-  PREMIUM = 'PREMIUM', // Intermediate features
-  PRO = 'PRO'       // Advanced features
+  PREMIUM = 'PREMIUM',
+  PRO = 'PRO'
 }
+
+export type TutorMode = 'general' | 'exam' | 'slow' | 'quick' | 'university' | 'eli10' | 'auto';
 
 export interface QuizQuestion {
   question: string;
@@ -33,14 +35,14 @@ export interface LessonContent {
 export interface QuizScoreRecord {
   topic: string;
   score: number;
-  date: number; // Timestamp
+  date: number;
   difficulty: DifficultyLevel;
 }
 
 export interface UserDocument {
   name: string;
   type: string;
-  data: string; // base64
+  data: string;
   date: number;
 }
 
