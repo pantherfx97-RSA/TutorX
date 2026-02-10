@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { LessonContent, AppScreen, SubscriptionTier } from '../types';
 import QuizView from './QuizView';
-import { askTutor, generateGeminiSpeech } from '../services/geminiService';
+import { askTutor, generateGeminiSpeech, TutorMode } from '../services/geminiService';
 import { jsPDF } from 'jspdf';
 import { FREE_DAILY_QUESTION_LIMIT } from '../constants';
 
@@ -87,6 +88,7 @@ const LessonView: React.FC<LessonViewProps> = ({
   const [lessonCompleted, setLessonCompleted] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [tutorMode, setTutorMode] = useState<TutorMode>('auto'); // Default changed to Auto
 
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
@@ -104,7 +106,6 @@ const LessonView: React.FC<LessonViewProps> = ({
 
   const limitReached = tier === SubscriptionTier.FREE && questionsAskedToday >= FREE_DAILY_QUESTION_LIMIT;
 
-  // Added handleVoiceChange to fix reference error and handle voice switching
   const handleVoiceChange = (voiceId: string) => {
     setSelectedVoice(voiceId);
     stopAudio();
@@ -168,14 +169,11 @@ const LessonView: React.FC<LessonViewProps> = ({
       setIsPaused(false);
     } else {
       setIsSynthesizing(true);
-      
-      // Speed Optimization: Split text into small initial chunk for instant response
       const paragraphs = content.lesson.split('\n\n').filter(p => p.trim());
       const firstParagraph = paragraphs[0];
       const sentences = firstParagraph.split(/[.!?]+/).filter(s => s.trim().length > 5);
       const immediateChunk = sentences.slice(0, 1).join('. ') + '.';
       const restOfFirstParagraph = sentences.slice(1).join('. ') + '.';
-      
       const chunks = [immediateChunk, restOfFirstParagraph, ...paragraphs.slice(1)];
 
       try {
@@ -183,12 +181,8 @@ const LessonView: React.FC<LessonViewProps> = ({
         audioContextRef.current = ctx;
         nextStartTimeRef.current = ctx.currentTime;
         setIsSpeaking(true);
-
-        // Fetch and play first chunk immediately
         await streamChunk(chunks[0], ctx);
-        setIsSynthesizing(false); // UI feels "finished" loading immediately after speech starts
-
-        // Queue subsequent chunks
+        setIsSynthesizing(false);
         for (let i = 1; i < chunks.length; i++) {
           if (!audioContextRef.current) break;
           if (chunks[i].trim().length > 0) {
@@ -245,7 +239,7 @@ const LessonView: React.FC<LessonViewProps> = ({
     setIsTyping(true);
     scrollToBottom();
     try {
-      const response = await askTutor(userMsg, content, chatHistory, tier);
+      const response = await askTutor(userMsg, content, chatHistory, tier, tutorMode);
       onQuestionAsked();
       setIsTyping(false); 
       let currentText = "";
@@ -361,14 +355,75 @@ const LessonView: React.FC<LessonViewProps> = ({
           )}
           {activeTab === 'ask' && (
             <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-2 duration-500">
-              <div className="flex justify-between items-center px-2 mb-4">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">TutorX Reasoning Matrix</p>
-                {tier === SubscriptionTier.FREE && (
-                  <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-widest ${limitReached ? 'bg-rose-500 text-white animate-pulse' : 'bg-indigo-500/10 text-indigo-600'}`}>
-                    {questionsAskedToday} / {FREE_DAILY_QUESTION_LIMIT} Questions Used
-                  </span>
-                )}
+              <div className="flex flex-col gap-4 px-2 mb-4">
+                <div className="flex justify-between items-center">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Neural Mode Selector</p>
+                  {tier === SubscriptionTier.FREE && (
+                    <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-widest ${limitReached ? 'bg-rose-500 text-white animate-pulse' : 'bg-indigo-500/10 text-indigo-600'}`}>
+                      {questionsAskedToday} / {FREE_DAILY_QUESTION_LIMIT} Questions
+                    </span>
+                  )}
+                </div>
+                
+                <div className="flex p-1 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-x-auto no-scrollbar">
+                  <button 
+                    onClick={() => setTutorMode('auto')}
+                    className={`flex-1 min-w-[120px] py-2 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all relative overflow-hidden ${tutorMode === 'auto' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400'}`}
+                  >
+                    <span className="relative z-10 flex items-center justify-center gap-1.5">
+                       🤖 Auto <span className="text-[7px] bg-white/20 px-1 rounded">Recommended</span>
+                    </span>
+                    {tutorMode === 'auto' && <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-rotate-slow pointer-events-none opacity-50"></div>}
+                  </button>
+                  <button 
+                    onClick={() => setTutorMode('general')}
+                    className={`flex-1 min-w-[80px] py-2 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all ${tutorMode === 'general' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400'}`}
+                  >
+                    General
+                  </button>
+                  <button 
+                    onClick={() => setTutorMode('exam')}
+                    className={`flex-1 min-w-[80px] py-2 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all ${tutorMode === 'exam' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400'}`}
+                  >
+                    Exam
+                  </button>
+                  <button 
+                    onClick={() => setTutorMode('university')}
+                    className={`flex-1 min-w-[80px] py-2 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all ${tutorMode === 'university' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400'}`}
+                  >
+                    Uni
+                  </button>
+                  <button 
+                    onClick={() => setTutorMode('eli10')}
+                    className={`flex-1 min-w-[80px] py-2 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all ${tutorMode === 'eli10' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400'}`}
+                  >
+                    ELI10
+                  </button>
+                  <button 
+                    onClick={() => setTutorMode('slow')}
+                    className={`flex-1 min-w-[80px] py-2 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all ${tutorMode === 'slow' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400'}`}
+                  >
+                    Slow
+                  </button>
+                  <button 
+                    onClick={() => setTutorMode('quick')}
+                    className={`flex-1 min-w-[80px] py-2 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all ${tutorMode === 'quick' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400'}`}
+                  >
+                    Quick
+                  </button>
+                </div>
+                
+                <p className="text-[9px] font-bold text-slate-500 px-1 leading-relaxed">
+                  {tutorMode === 'auto' && "Intelligently adjusts between all modes based on your question's complexity."}
+                  {tutorMode === 'general' && "Standard conversational learning logic."}
+                  {tutorMode === 'exam' && "Strict, keyword-focused exam prep protocol."}
+                  {tutorMode === 'university' && "In-depth academic reasoning and theory."}
+                  {tutorMode === 'eli10' && "Explained like you're 10. Simple and fun analogies."}
+                  {tutorMode === 'slow' && "Simplified language, small steps, and high patience."}
+                  {tutorMode === 'quick' && "Fast summaries and formulas for rapid revision."}
+                </p>
               </div>
+
               <div className="flex-1 space-y-4 overflow-y-auto mb-4 pr-2 no-scrollbar">
                 {chatHistory.map((msg, i) => (
                   <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -378,6 +433,7 @@ const LessonView: React.FC<LessonViewProps> = ({
                 {streamingMessage && <div className="flex justify-start"><div className="max-w-[85%] p-4 rounded-3xl rounded-tl-none bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 text-sm font-bold">{streamingMessage}</div></div>}
                 <div ref={chatEndRef} />
               </div>
+              
               {limitReached ? (
                 <div className="p-6 bg-slate-50 dark:bg-slate-900 border-2 border-indigo-500/20 rounded-3xl text-center space-y-3">
                    <p className="text-sm font-black text-slate-800 dark:text-white">Daily Neural Limit Reached</p>
@@ -386,8 +442,22 @@ const LessonView: React.FC<LessonViewProps> = ({
                 </div>
               ) : (
                 <form onSubmit={handleSendMessage} className="relative">
-                  <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Ask TutorX anything..." className="w-full pl-6 pr-14 py-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 text-sm font-bold outline-none" />
-                  <button type="submit" disabled={!chatInput.trim() || isTyping} className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-indigo-600 text-white rounded-xl active:scale-95 disabled:opacity-50"><svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg></button>
+                  <input 
+                    type="text" 
+                    value={chatInput} 
+                    onChange={(e) => setChatInput(e.target.value)} 
+                    placeholder={
+                      tutorMode === 'auto' ? "Ask anything, I'll adjust..." :
+                      tutorMode === 'slow' ? "Ask something simply..." : 
+                      tutorMode === 'exam' ? "Ask an exam-focused question..." : 
+                      tutorMode === 'university' ? "Academic inquiry..." :
+                      tutorMode === 'eli10' ? "Ask me anything, like a story..." :
+                      tutorMode === 'quick' ? "Revision question..." :
+                      "Ask TutorX anything..."
+                    } 
+                    className="w-full pl-6 pr-14 py-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 text-sm font-bold outline-none focus:border-indigo-500 transition-colors" 
+                  />
+                  <button type="submit" disabled={!chatInput.trim() || isTyping} className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-indigo-600 text-white rounded-xl active:scale-95 disabled:opacity-50 transition-all shadow-lg"><svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg></button>
                 </form>
               )}
             </div>

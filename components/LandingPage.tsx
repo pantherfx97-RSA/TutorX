@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { AppScreen } from '../types';
 import Auth from './Auth';
 import { askTutor } from '../services/geminiService';
+import { DEVELOPER_CREDIT } from '../constants';
 
 interface LandingPageProps {
   currentAuthScreen: AppScreen;
@@ -268,7 +269,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
            <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.4em] leading-loose">
              Secure Infrastructure • Privacy Guaranteed • Built in South Africa
            </p>
-           <p className="text-xs text-slate-400 font-medium">Developed by Cipher X Inc • Founder: Wally Nthani • © 2025 TutorX</p>
+           <p className="text-xs text-slate-400 font-medium">{DEVELOPER_CREDIT} • © 2025 TutorX</p>
         </div>
       </footer>
     </div>

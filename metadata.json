@@ -1,5 +1,7 @@
 {
   "name": "TutorX",
-  "description": "AI-powered Smart Learning application developed by Wally Nthani. Personalized lessons, summaries, and quizzes at your fingertips.",
-  "requestFramePermissions": []
+  "description": "Premium AI-powered Neural Learning Engine developed by Wally Nthani for CipherX Inc. Personalized masterclasses, exam-mode prep, and conversational tutoring.",
+  "requestFramePermissions": [
+    "camera"
+  ]
 }

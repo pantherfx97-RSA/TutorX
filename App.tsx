@@ -11,8 +11,11 @@ import LessonView from './components/LessonView';
 import UpgradeModal from './components/UpgradeModal';
 import LandingPage from './components/LandingPage';
 import PlansView from './components/PlansView';
+import { DEVELOPER_CREDIT } from './constants';
 
 const App: React.FC = () => {
+  const [showSplash, setShowSplash] = useState(true);
+  const [splashProgress, setSplashProgress] = useState(0);
   const [currentScreen, setCurrentScreen] = useState<AppScreen>(AppScreen.LANDING);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(false);
@@ -31,6 +34,33 @@ const App: React.FC = () => {
   const [targetTier, setTargetTier] = useState<SubscriptionTier>(SubscriptionTier.PREMIUM);
 
   const toggleDarkMode = () => setIsDarkMode(prev => !prev);
+
+  // Splash Screen Logic
+  useEffect(() => {
+    // Prevent body scroll during splash
+    document.body.style.overflow = 'hidden';
+    
+    const progressTimer = setInterval(() => {
+      setSplashProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(progressTimer);
+          return 100;
+        }
+        return prev + 1.25;
+      });
+    }, 30);
+
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+      document.body.style.overflow = 'auto';
+    }, 3200);
+
+    return () => {
+      clearTimeout(timer);
+      clearInterval(progressTimer);
+      document.body.style.overflow = 'auto';
+    };
+  }, []);
 
   useEffect(() => {
     const stored = mockAuth.getStoredUser();
@@ -209,7 +239,52 @@ const App: React.FC = () => {
 
   return (
     <div className="antialiased">
+      {/* Premium Neural Splash Screen */}
+      {showSplash && (
+        <div className="fixed inset-0 z-[1000] bg-slate-950 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-700">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-900/20 via-slate-950 to-slate-950 opacity-80"></div>
+          
+          <div className="relative group mb-12">
+            <div className="absolute -inset-8 bg-indigo-500/20 rounded-full blur-[60px] animate-pulse"></div>
+            <div className="w-28 h-28 sm:w-36 sm:h-36 bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-[0_0_80px_rgba(99,102,241,0.4)] flex items-center justify-center border border-indigo-500/30 transform transition-transform animate-float relative z-10">
+              <svg viewBox="0 0 64 64" className="w-20 h-20 sm:w-24 sm:h-24">
+                <path d="M18 18L46 46" stroke="#6366f1" strokeWidth="8" strokeLinecap="round" />
+                <path d="M46 18L18 46" stroke="#6366f1" strokeWidth="8" strokeLinecap="round" strokeOpacity="0.25" />
+                <circle cx="32" cy="32" r="7" fill="#6366f1" className="animate-pulse" />
+              </svg>
+            </div>
+          </div>
+          
+          <div className="relative z-10 space-y-4 animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-300">
+            <h1 className="text-4xl sm:text-6xl font-black text-white tracking-tighter">
+              Tutor<span className="text-indigo-500">X</span>
+            </h1>
+            <p className="text-[11px] font-black uppercase tracking-[0.5em] text-indigo-400/80">Neural Learning Engine</p>
+            
+            {/* Progress Bar Container */}
+            <div className="w-48 sm:w-64 h-1.5 bg-slate-800 rounded-full mx-auto overflow-hidden mt-8 border border-slate-700/50">
+              <div 
+                className="h-full bg-gradient-to-r from-indigo-600 to-purple-500 transition-all duration-300 ease-out shadow-[0_0_10px_rgba(99,102,241,0.5)]"
+                style={{ width: `${splashProgress}%` }}
+              ></div>
+            </div>
+            <div className="flex items-center justify-center gap-2 pt-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping"></div>
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Synchronizing Core... {Math.round(splashProgress)}%</span>
+            </div>
+          </div>
+
+          <div className="absolute bottom-16 space-y-2 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-1000 text-center">
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">
+              {DEVELOPER_CREDIT}
+            </p>
+            <div className="h-[1px] w-8 bg-slate-800 mx-auto"></div>
+          </div>
+        </div>
+      )}
+
       {renderContent()}
+      
       {showUpgrade && (
         <UpgradeModal 
           targetTier={targetTier} 
