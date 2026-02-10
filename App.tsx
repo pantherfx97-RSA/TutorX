@@ -11,6 +11,7 @@ import LessonView from './components/LessonView';
 import UpgradeModal from './components/UpgradeModal';
 import LandingPage from './components/LandingPage';
 import PlansView from './components/PlansView';
+import MathGuruView from './components/MathGuruView';
 import { DEVELOPER_CREDIT } from './constants';
 
 const App: React.FC = () => {
@@ -140,8 +141,9 @@ const App: React.FC = () => {
             questionsAskedToday={user.questionsAskedToday} onQuestionAsked={handleQuestionAsked}
           />
         )}
-        {currentScreen === AppScreen.PROFILE && <Profile user={user} onUpload={handleDocumentUpload} onTriggerUpgrade={(tier) => { setTargetTier(tier); setShowUpgrade(true); }} onLogout={handleLogout} />}
+        {currentScreen === AppScreen.PROFILE && <Profile user={user} onUpload={handleDocumentUpload} onTriggerUpgrade={(tier) => { setTargetTier(tier); setShowUpgrade(true); }} onLogout={handleLogout} onNavigate={setCurrentScreen} />}
         {currentScreen === AppScreen.PLANS && <PlansView currentTier={user.tier} onTriggerUpgrade={(tier) => { setTargetTier(tier); setShowUpgrade(true); }} />}
+        {currentScreen === AppScreen.MATH_GURU && <MathGuruView onBack={() => setCurrentScreen(AppScreen.PROFILE)} tier={user.tier} onQuestionAsked={handleQuestionAsked} />}
       </Layout>
     );
   };

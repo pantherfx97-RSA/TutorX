@@ -1,5 +1,5 @@
 
-export const DEVELOPER_CREDIT = "Developed by Wally Nthani for CipherX Inc";
+export const DEVELOPER_CREDIT = "Developed by W Nthani for CipherX Inc";
 export const APP_NAME = "TutorX";
 export const MODEL_NAME = "gemini-3-flash-preview";
 export const FREE_DAILY_QUESTION_LIMIT = 100;

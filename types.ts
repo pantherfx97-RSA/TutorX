@@ -11,7 +11,7 @@ export enum SubscriptionTier {
   PRO = 'PRO'
 }
 
-export type TutorMode = 'general' | 'exam' | 'slow' | 'quick' | 'university' | 'eli10' | 'auto';
+export type TutorMode = 'general' | 'exam' | 'slow' | 'quick' | 'university' | 'eli10' | 'auto' | 'math_guru';
 
 export interface QuizQuestion {
   question: string;
@@ -68,5 +68,6 @@ export enum AppScreen {
   DASHBOARD = 'dashboard',
   PROFILE = 'profile',
   LEARNING = 'learning',
-  PLANS = 'plans'
+  PLANS = 'plans',
+  MATH_GURU = 'math_guru'
 }

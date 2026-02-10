@@ -1,8 +1,8 @@
 
 {
-  "name": "TutorX AI Masterclass",
+  "name": "TutorX | Neural Learning",
   "short_name": "TutorX",
-  "description": "Premium AI-powered personalized learning engine developed by Wally Nthani.",
+  "description": "Premium AI-powered personalized learning engine by W Nthani.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f172a",
@@ -10,25 +10,16 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "https://picsum.photos/id/180/192/192",
+      "src": "https://raw.githubusercontent.com/google/material-design-icons/master/png/action/auto_fix_high/materialicons/192dp/2x/baseline_auto_fix_high_black_48dp.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "https://picsum.photos/id/180/512/512",
+      "src": "https://raw.githubusercontent.com/google/material-design-icons/master/png/action/auto_fix_high/materialicons/512dp/2x/baseline_auto_fix_high_black_48dp.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
-    }
-  ],
-  "screenshots": [
-    {
-      "src": "https://picsum.photos/id/20/1080/1920",
-      "sizes": "1080x1920",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "TutorX Dashboard"
     }
   ]
 }

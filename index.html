@@ -6,13 +6,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>TutorX | Neural Learning Engine</title>
   
-  <!-- PWA & Mobile Meta Tags -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#4f46e5">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="TutorX">
-  <link rel="apple-touch-icon" href="https://picsum.photos/id/180/192/192">
+  <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/google/material-design-icons/master/png/action/auto_fix_high/materialicons/192dp/2x/baseline_auto_fix_high_black_48dp.png">
   <meta name="mobile-web-app-capable" content="yes">
 
   <script src="https://cdn.tailwindcss.com"></script>
@@ -21,12 +20,8 @@
       darkMode: 'class',
       theme: {
         extend: {
-          fontFamily: {
-            sans: ['Inter', 'system-ui', 'sans-serif'],
-          },
-          screens: {
-            'xs': '400px',
-          },
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+          screens: { 'xs': '400px' },
         },
       },
     }
@@ -35,79 +30,15 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
-    :root {
-      -webkit-tap-highlight-color: transparent;
-    }
-    body { 
-      font-family: 'Inter', sans-serif; 
-      transition: background-color 0.3s ease, color 0.3s ease; 
-      overscroll-behavior-y: contain;
-    }
-    
-    /* Smooth scroll for all */
+    :root { -webkit-tap-highlight-color: transparent; }
+    body { font-family: 'Inter', sans-serif; transition: background-color 0.3s ease, color 0.3s ease; overscroll-behavior-y: contain; }
     * { scroll-behavior: smooth; }
-
-    /* Hide scrollbar for Chrome, Safari and Opera */
     .no-scrollbar::-webkit-scrollbar { display: none; }
-    /* Hide scrollbar for IE, Edge and Firefox */
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-    /* Custom Animations */
-    @keyframes checkmark {
-      0% { stroke-dashoffset: 100; }
-      100% { stroke-dashoffset: 0; }
-    }
-    .animate-checkmark {
-      stroke-dasharray: 100;
-      stroke-dashoffset: 100;
-      animation: checkmark 0.8s cubic-bezier(0.65, 0, 0.45, 1) forwards;
-    }
-
-    @keyframes confetti-fall {
-      0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
-      100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
-    }
-    .confetti-piece {
-      position: fixed;
-      width: 10px;
-      height: 10px;
-      top: -20px;
-      z-index: 100;
-      animation: confetti-fall 3s linear forwards;
-    }
-
-    @keyframes pulse-soft {
-      0%, 100% { transform: scale(1); opacity: 0.8; }
-      50% { transform: scale(1.05); opacity: 1; }
-    }
-    .animate-pulse-soft {
-      animation: pulse-soft 2s infinite ease-in-out;
-    }
-
-    @keyframes success-pop {
-      0% { transform: scale(0.8); opacity: 0; }
-      50% { transform: scale(1.1); }
-      100% { transform: scale(1); opacity: 1; }
-    }
-    .animate-success-pop {
-      animation: success-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-    }
-
-    @keyframes float {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-10px); }
-    }
-    .animate-float {
-      animation: float 4s ease-in-out infinite;
-    }
-
-    @keyframes rotate-slow {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-    .animate-rotate-slow {
-      animation: rotate-slow 20s linear infinite;
-    }
+    @keyframes pulse-soft { 0%, 100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.05); opacity: 1; } }
+    .animate-pulse-soft { animation: pulse-soft 2s infinite ease-in-out; }
+    @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+    .animate-float { animation: float 4s ease-in-out infinite; }
   </style>
 <script type="importmap">
 {
@@ -126,17 +57,5 @@
 <body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-50 selection:bg-indigo-500 selection:text-white">
   <div id="root"></div>
   <script type="module" src="index.tsx"></script>
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js').then(registration => {
-          console.log('SW registered');
-        }).catch(err => console.log('SW failed', err));
-      });
-    }
-    
-    const theme = localStorage.getItem('tutorx_theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    document.documentElement.classList.toggle('dark', theme === 'dark');
-  </script>
 </body>
 </html>
