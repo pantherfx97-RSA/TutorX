@@ -79,6 +79,13 @@ const LandingPage: React.FC<LandingPageProps> = ({
     }
   };
 
+  const handleDirectLaunch = () => {
+    setShowPortal(true);
+    setTimeout(() => {
+      authRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+  };
+
   useEffect(() => {
     if (showPortal && authRef.current) {
       setTimeout(() => {
@@ -88,7 +95,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
   }, [showPortal]);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 selection:bg-indigo-500 selection:text-white overflow-x-hidden">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 selection:bg-indigo-500 selection:text-white overflow-x-hidden pb-32">
       {/* PWA Install Button (Sticky Top) */}
       {deferredPrompt && (
         <div className="fixed top-0 left-0 right-0 z-[60] p-3 flex justify-center animate-in slide-in-from-top duration-500">
@@ -103,24 +110,34 @@ const LandingPage: React.FC<LandingPageProps> = ({
       )}
 
       {/* Hero Section */}
-      <section className="relative min-h-screen flex flex-col items-center justify-center px-4 py-20">
+      <section className="relative min-h-screen flex flex-col items-center justify-center px-4 py-12">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-500/10 blur-[120px] rounded-full"></div>
           <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-500/10 blur-[120px] rounded-full"></div>
         </div>
 
         <div className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-start relative z-10">
-          <div className="space-y-8 text-center lg:text-left pt-10">
-            <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-200 dark:shadow-none">
-                Elite AI Learning Engine
+          <div className="space-y-8 text-center lg:text-left pt-6">
+            <div className="space-y-6">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-200 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-[10px] font-black uppercase tracking-widest border border-indigo-300 dark:border-indigo-800">
+                FOR HIGH SCHOOL & UNIVERSITY STUDENTS
               </div>
               <h1 className="text-5xl md:text-7xl font-black text-slate-900 dark:text-white leading-[1.1] tracking-tighter">
-                Smarter Study, <span className="text-indigo-600 dark:text-indigo-400">Higher Grades.</span>
+                Master Any Subject with <span className="text-indigo-600 dark:text-indigo-400">AI Precision.</span>
               </h1>
-              <p className="text-lg md:text-xl text-slate-600 dark:text-slate-300 font-bold max-w-xl mx-auto lg:mx-0">
-                The most precise AI tutor for University and High School curriculum.
+              <p className="text-lg text-slate-500 dark:text-slate-400 font-bold max-w-xl mx-auto lg:mx-0">
+                Ask questions. Get step-by-step explanations. <br className="hidden sm:block" /> Start your study session now.
               </p>
+              
+              <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-2">
+                <button 
+                  onClick={handleDirectLaunch}
+                  className="w-full sm:w-auto px-8 py-4 bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl flex items-center justify-center gap-3 hover:border-indigo-500 transition-all active:scale-95"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                  Launch Portal
+                </button>
+              </div>
             </div>
 
             <div className="space-y-6">
@@ -128,16 +145,16 @@ const LandingPage: React.FC<LandingPageProps> = ({
                 <div className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-2xl space-y-6 max-w-xl mx-auto lg:mx-0">
                   <div className="flex items-center gap-3 mb-2">
                     <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></div>
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Academic Clearance Checklist</span>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Live Briefing Protocol</span>
                   </div>
 
                   <form onSubmit={handlePreviewAsk} className="space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Subject Name</label>
+                        <label className="block text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Subject</label>
                         <input 
                           type="text" 
-                          placeholder="e.g. Physics, Law..." 
+                          placeholder="e.g. Mathematics, History" 
                           value={subject}
                           onChange={(e) => setSubject(e.target.value)}
                           className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm font-bold focus:border-indigo-500 outline-none transition-all"
@@ -148,7 +165,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
                         <label className="block text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Exam Type</label>
                         <input 
                           type="text" 
-                          placeholder="e.g. NSC, IEB, Midterm..." 
+                          placeholder="e.g. Matric, SAT, Finals" 
                           value={examType}
                           onChange={(e) => setExamType(e.target.value)}
                           className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm font-bold focus:border-indigo-500 outline-none transition-all"
@@ -162,14 +179,14 @@ const LandingPage: React.FC<LandingPageProps> = ({
                         <button 
                           type="button" 
                           onClick={() => setLevel('High School')}
-                          className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${level === 'High School' ? 'bg-white dark:bg-slate-800 text-indigo-600 shadow-sm' : 'text-slate-400'}`}
+                          className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${level === 'High School' ? 'bg-indigo-500 text-white shadow-sm' : 'text-slate-400'}`}
                         >
                           High School
                         </button>
                         <button 
                           type="button" 
                           onClick={() => setLevel('University')}
-                          className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${level === 'University' ? 'bg-white dark:bg-slate-800 text-indigo-600 shadow-sm' : 'text-slate-400'}`}
+                          className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${level === 'University' ? 'bg-indigo-500 text-white shadow-sm' : 'text-slate-400'}`}
                         >
                           University
                         </button>
@@ -177,12 +194,12 @@ const LandingPage: React.FC<LandingPageProps> = ({
                     </div>
 
                     <div className="relative">
-                      <label className="block text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Your Question</label>
+                      <label className="block text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Ask your question...</label>
                       <textarea 
                         value={previewQuestion}
                         onChange={(e) => setPreviewQuestion(e.target.value)}
-                        placeholder="What concept do you want to understand right now?" 
-                        rows={3}
+                        placeholder="What do you want to learn right now?" 
+                        rows={2}
                         className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm font-bold focus:border-indigo-500 outline-none transition-all resize-none"
                         required
                       />
@@ -220,7 +237,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
           </div>
 
           <div className="w-full max-w-md mx-auto" ref={authRef}>
-            {showPortal ? (
+            {(showPortal || previewResponse) ? (
               <div className="animate-success-pop duration-700">
                 <Auth 
                   type={currentAuthScreen} 

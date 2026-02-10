@@ -171,6 +171,7 @@ const App: React.FC = () => {
         onNavigate={setCurrentScreen}
         isDarkMode={isDarkMode}
         toggleDarkMode={toggleDarkMode}
+        activeScreen={currentScreen}
       >
         {currentScreen === AppScreen.DASHBOARD && (
           <Dashboard user={user} onStartLearning={startLearning} onTriggerUpgrade={(tier) => { setTargetTier(tier); setShowUpgrade(true); }} loading={loading} />
@@ -193,6 +194,7 @@ const App: React.FC = () => {
             user={user} 
             onUpload={handleDocumentUpload} 
             onTriggerUpgrade={(tier) => { setTargetTier(tier); setShowUpgrade(true); }}
+            onLogout={handleLogout}
           />
         )}
         {currentScreen === AppScreen.PLANS && (
