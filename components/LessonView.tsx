@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { LessonContent, AppScreen, SubscriptionTier, TutorMode } from '../types';
 import QuizView from './QuizView';
-import { askTutor, generateGeminiSpeech } from '../services/geminiService';
+import { askTutorStream, generateGeminiSpeech } from '../services/geminiService';
 import { jsPDF } from 'jspdf';
 import { FREE_DAILY_QUESTION_LIMIT } from '../constants';
 
@@ -107,14 +107,12 @@ const LessonView: React.FC<LessonViewProps> = ({
   const [tutorMode, setTutorMode] = useState<TutorMode>('auto');
   const [voiceSync, setVoiceSync] = useState(false);
 
-  // Lesson Typewriter State
   const [displayedLesson, setDisplayedLesson] = useState('');
   const [isLessonTyping, setIsLessonTyping] = useState(true);
 
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [isThinking, setIsThinking] = useState(false);
-  const [isTyping, setIsTyping] = useState(false);
   const [streamingMessage, setStreamingMessage] = useState('');
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -130,14 +128,11 @@ const LessonView: React.FC<LessonViewProps> = ({
 
   useEffect(() => {
     let isMounted = true;
-    
-    // Reset states when content topic changes
     setChatHistory([]);
     setLessonCompleted(false);
     setDisplayedLesson('');
     setStreamingMessage('');
     setIsThinking(false);
-    setIsTyping(false);
     setActiveTab('learn');
 
     const typeLesson = async () => {
@@ -159,7 +154,7 @@ const LessonView: React.FC<LessonViewProps> = ({
 
   useEffect(() => {
     if (activeTab === 'ask') scrollToBottom();
-  }, [activeTab, streamingMessage, isThinking, isTyping]);
+  }, [activeTab, streamingMessage, isThinking]);
 
   useEffect(() => {
     return () => stopAudio();
@@ -200,48 +195,38 @@ const LessonView: React.FC<LessonViewProps> = ({
         doc.setFontSize(60);
         doc.setFont("helvetica", "bold");
         doc.text("CONFIDENTIAL", pageWidth / 2, pageHeight / 2, { align: "center", angle: 45 });
-
         doc.setTextColor(30, 27, 75);
         doc.setFontSize(26);
         doc.setFont("helvetica", "bold");
         doc.text("TutorX", 20, 20);
-        
         doc.setTextColor(51, 65, 85);
         doc.setFontSize(9);
         doc.setFont("helvetica", "bold");
         doc.text("NEURAL LEARNING ENGINE | SESSION ARCHIVE", 20, 28);
-
         doc.setTextColor(30, 41, 59);
         doc.setFontSize(10);
         doc.text(`DATE: ${new Date().toLocaleString()}`, pageWidth - 20, 20, { align: "right" });
-
         doc.setDrawColor(79, 70, 229);
         doc.setLineWidth(0.5);
         doc.line(20, 32, pageWidth - 20, 32);
       };
-
       addBranding();
-
       doc.setTextColor(15, 23, 42); 
       doc.setFontSize(15);
       doc.setFont("helvetica", "bold");
       doc.text(`SUBJECT: ${content.topic}`, 20, 45);
-
       let y = 55;
       chatHistory.forEach((msg) => {
         const role = msg.role === 'user' ? 'STUDENT' : 'TUTORX AI';
         const roleColor = msg.role === 'user' ? [67, 56, 202] : [15, 23, 42];
-        
         doc.setFont("helvetica", "bold");
         // @ts-ignore
         doc.setTextColor(...roleColor);
         doc.text(`${role}:`, 20, y);
         y += 7;
-
         doc.setFont("helvetica", "normal");
         doc.setTextColor(10, 10, 10); 
         const lines = doc.splitTextToSize(msg.text.replace(/[*#]/g, ''), 170);
-        
         lines.forEach((line: string) => {
           if (y > pageHeight - 30) {
             doc.addPage();
@@ -253,7 +238,6 @@ const LessonView: React.FC<LessonViewProps> = ({
         });
         y += 10;
       });
-
       doc.save(`TutorX_Session_${content.topic.replace(/\s+/g, '_')}.pdf`);
     } catch (error) {
       alert("Neural session archival failed.");
@@ -278,6 +262,7 @@ const LessonView: React.FC<LessonViewProps> = ({
 
   const startNarration = async (text: string) => {
     setIsSynthesizing(true);
+    // Split into smaller paragraphs for instant playback start
     const chunks = text.split('\n\n').filter(p => p.trim());
     try {
       if (!audioContextRef.current) {
@@ -285,9 +270,11 @@ const LessonView: React.FC<LessonViewProps> = ({
         nextStartTimeRef.current = audioContextRef.current.currentTime;
       }
       setIsSpeaking(true);
-      for (const chunk of chunks) {
+      
+      // Process chunks in order but asynchronously synthesize them
+      for (let i = 0; i < chunks.length; i++) {
         if (!audioContextRef.current) break;
-        await streamChunk(chunk, audioContextRef.current);
+        await streamChunk(chunks[i], audioContextRef.current);
       }
     } catch (e) {
       if (window.speechSynthesis) {
@@ -307,52 +294,54 @@ const LessonView: React.FC<LessonViewProps> = ({
       const base64 = await generateGeminiSpeech(cleanedText, selectedVoice);
       const bytes = decodeBase64(base64);
       const buffer = await decodeAudioData(bytes, ctx, 24000, 1);
+      
       if (!audioContextRef.current) return;
       const source = ctx.createBufferSource();
       source.buffer = buffer;
       source.connect(ctx.destination);
+      
       const startTime = Math.max(nextStartTimeRef.current, ctx.currentTime);
       source.start(startTime);
       nextStartTimeRef.current = startTime + buffer.duration;
       activeSourcesRef.current.add(source);
+      
       source.onended = () => {
         activeSourcesRef.current.delete(source);
-        if (activeSourcesRef.current.size === 0) { setIsSpeaking(false); setIsPaused(false); }
+        if (activeSourcesRef.current.size === 0) {
+          setIsSpeaking(false);
+          setIsPaused(false);
+        }
       };
     } catch (e) { console.error("Synthesis error:", e); }
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!chatInput.trim() || isThinking || isTyping || streamingMessage || limitReached) return;
+    if (!chatInput.trim() || isThinking || !!streamingMessage || limitReached) return;
     const userMsg = chatInput.trim();
     setChatInput('');
     setChatHistory(prev => [...prev, { role: 'user', text: userMsg }]);
     setIsThinking(true);
     scrollToBottom();
+    
     try {
-      const response = await askTutor(userMsg, content, chatHistory, tier, tutorMode);
-      onQuestionAsked();
-      setIsThinking(false); 
-      setIsTyping(true);
+      let fullResponse = "";
+      const stream = askTutorStream(userMsg, content, chatHistory, tier, tutorMode);
       
-      let currentText = "";
-      const words = response.split(' ');
-      for (let i = 0; i < words.length; i++) {
-        currentText += (i === 0 ? "" : " ") + words[i];
-        setStreamingMessage(currentText);
-        if (i % 8 === 0) scrollToBottom();
-        await new Promise(r => setTimeout(r, 20 + Math.random() * 15));
+      onQuestionAsked();
+      setIsThinking(false);
+      
+      for await (const chunk of stream) {
+        fullResponse += chunk;
+        setStreamingMessage(fullResponse);
+        scrollToBottom();
       }
       
-      setChatHistory(prev => [...prev, { role: 'model', text: response }]);
+      setChatHistory(prev => [...prev, { role: 'model', text: fullResponse }]);
       setStreamingMessage('');
-      setIsTyping(false);
-      scrollToBottom();
-      if (voiceSync) { await startNarration(response); }
+      if (voiceSync) { await startNarration(fullResponse); }
     } catch (error) {
       setIsThinking(false);
-      setIsTyping(false);
       setChatHistory(prev => [...prev, { role: 'model', text: "⚠️ Neural link interrupted." }]);
     }
   };
@@ -371,7 +360,7 @@ const LessonView: React.FC<LessonViewProps> = ({
     <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-500 pb-10 max-w-4xl mx-auto w-full">
       <div className="flex items-center justify-between">
         <button onClick={() => { stopAudio(); onBack(); }} className="flex items-center space-x-2 text-slate-400 dark:text-slate-600 hover:text-indigo-600 font-black text-[10px] sm:text-xs uppercase tracking-widest transition-colors active:scale-95">
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M15 19l-7-7 7-7" /></svg>
           <span>Exit Portal</span>
         </button>
       </div>
@@ -481,7 +470,7 @@ const LessonView: React.FC<LessonViewProps> = ({
 
               <form onSubmit={handleSendMessage} className="relative group">
                 <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Ask TutorX for clarification..." className="relative w-full pl-6 pr-14 py-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 text-sm font-bold outline-none focus:border-indigo-500 transition-all" />
-                <button type="submit" disabled={!chatInput.trim() || isThinking || isTyping || !!streamingMessage} className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-indigo-600 text-white rounded-xl active:scale-95 disabled:opacity-50 transition-all shadow-lg z-10"><svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg></button>
+                <button type="submit" disabled={!chatInput.trim() || isThinking || !!streamingMessage} className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-indigo-600 text-white rounded-xl active:scale-95 disabled:opacity-50 transition-all shadow-lg z-10"><svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg></button>
               </form>
             </div>
           )}

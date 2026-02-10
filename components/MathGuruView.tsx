@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { askMathGuru } from '../services/geminiService';
+import { askMathGuruStream } from '../services/geminiService';
 import { SubscriptionTier } from '../types';
 
 interface MathGuruViewProps {
@@ -87,7 +87,6 @@ const MathGuruView: React.FC<MathGuruViewProps> = ({ onBack, tier, onQuestionAsk
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [streamingText, setStreamingText] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [imageMime, setImageMime] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -96,7 +95,7 @@ const MathGuruView: React.FC<MathGuruViewProps> = ({ onBack, tier, onQuestionAsk
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isLoading, streamingText, isTyping]);
+  }, [messages, isLoading, streamingText]);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -133,7 +132,8 @@ const MathGuruView: React.FC<MathGuruViewProps> = ({ onBack, tier, onQuestionAsk
     setImageMime(null);
 
     try {
-      const response = await askMathGuru(
+      let fullResponse = "";
+      const stream = askMathGuruStream(
         userMsg.text,
         imageData ? { data: imageData, mimeType: currentMime! } : undefined,
         tier
@@ -141,23 +141,17 @@ const MathGuruView: React.FC<MathGuruViewProps> = ({ onBack, tier, onQuestionAsk
       
       onQuestionAsked();
       setIsLoading(false);
-      setIsTyping(true);
 
-      let currentText = "";
-      const words = response.split(' ');
-      for (let i = 0; i < words.length; i++) {
-        currentText += (i === 0 ? "" : " ") + words[i];
-        setStreamingText(currentText);
-        await new Promise(r => setTimeout(r, 25 + Math.random() * 20));
+      for await (const chunk of stream) {
+        fullResponse += chunk;
+        setStreamingText(fullResponse);
       }
 
-      setMessages(prev => [...prev, { role: 'model', text: response }]);
+      setMessages(prev => [...prev, { role: 'model', text: fullResponse }]);
       setStreamingText('');
-      setIsTyping(false);
       
     } catch (error) {
       setIsLoading(false);
-      setIsTyping(false);
       setMessages(prev => [...prev, { role: 'model', text: "❌ Neural link interrupted. Could not process math logic." }]);
     }
   };

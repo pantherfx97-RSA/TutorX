@@ -14,7 +14,6 @@ interface ProfileProps {
 type SettingsModal = 'help' | 'terms' | 'privacy' | 'bug' | null;
 
 const Profile: React.FC<ProfileProps> = ({ user, onUpload, onTriggerUpgrade, onLogout, onNavigate }) => {
-  const [isUploading, setIsUploading] = useState(false);
   const [activeModal, setActiveModal] = useState<SettingsModal>(null);
   const [bugDescription, setBugDescription] = useState('');
   const [bugSubmitted, setBugSubmitted] = useState(false);
@@ -26,31 +25,6 @@ const Profile: React.FC<ProfileProps> = ({ user, onUpload, onTriggerUpgrade, onL
     const avgScore = scores.length > 0 ? Math.round(scores.reduce((acc, s) => acc + s.score, 0) / scores.length) : 0;
     return { avgScore };
   }, [user.quizScores]);
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (user.tier === SubscriptionTier.FREE) {
-      onTriggerUpgrade?.(SubscriptionTier.PREMIUM);
-      return;
-    }
-
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsUploading(true);
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = (reader.result as string).split(',')[1];
-      const doc: UserDocument = {
-        name: file.name,
-        type: file.type,
-        data: base64,
-        date: Date.now()
-      };
-      onUpload?.(doc);
-      setIsUploading(false);
-    };
-    reader.readAsDataURL(file);
-  };
 
   const handleBugSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,7 +43,6 @@ const Profile: React.FC<ProfileProps> = ({ user, onUpload, onTriggerUpgrade, onL
     setTimeout(() => setShowLangUpdate(false), 2000);
   };
 
-  // Fixed ModalContainer type definition to make children optional, resolving TS errors in JSX usages
   const ModalContainer = ({ title, subtitle, children, onClose }: { title: string, subtitle: string, children?: React.ReactNode, onClose: () => void }) => (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh]">
@@ -92,7 +65,7 @@ const Profile: React.FC<ProfileProps> = ({ user, onUpload, onTriggerUpgrade, onL
   return (
     <div className="space-y-6 sm:space-y-10 animate-in slide-in-from-right-4 duration-500 max-w-2xl mx-auto pb-24">
       
-      {/* 1. Profile Identity Header */}
+      {/* Identity Profile Header */}
       <section className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden relative transition-all group">
         <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-r from-indigo-500 via-indigo-600 to-purple-600"></div>
         <div className="relative mt-12 px-8 pb-8 flex flex-col items-center">
@@ -112,16 +85,14 @@ const Profile: React.FC<ProfileProps> = ({ user, onUpload, onTriggerUpgrade, onL
         </div>
       </section>
 
-      {/* 2. Math Guru Access Card */}
+      {/* Maths Guru Action Card */}
       <section 
         onClick={() => onNavigate?.(AppScreen.MATH_GURU)}
         className="bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-[2.5rem] p-8 shadow-xl border border-indigo-500 cursor-pointer group overflow-hidden relative active:scale-[0.98] transition-all"
       >
         <div className="absolute -right-8 -bottom-8 w-48 h-48 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 transition-all"></div>
         <div className="flex items-center gap-6 relative z-10">
-          <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center text-white text-3xl">
-            📐
-          </div>
+          <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center text-white text-3xl">📐</div>
           <div className="flex-1">
             <h3 className="text-2xl font-black text-white tracking-tight uppercase">Math Guru Mode</h3>
             <p className="text-indigo-100 text-xs font-bold uppercase tracking-widest mt-1">Step-by-step problem solver</p>
@@ -132,38 +103,13 @@ const Profile: React.FC<ProfileProps> = ({ user, onUpload, onTriggerUpgrade, onL
         </div>
       </section>
 
-      {/* 3. About TutorX */}
-      <section className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 shadow-sm border border-slate-100 dark:border-slate-800 space-y-6">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-2xl flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <div>
-            <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">About TutorX</h3>
-            <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Neural Learning Mission</p>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <p className="text-sm font-bold text-slate-600 dark:text-slate-300 leading-relaxed">
-            TutorX is an intelligent tutoring assistant and educational companion developed by <span className="text-indigo-600 dark:text-indigo-400">CipherX Inc</span>. Designed to help learners understand, practice, and master concepts, TutorX combines cutting-edge AI technology with a step-by-step teaching approach.
-          </p>
-          <div className="pt-2 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-            <div className="w-1 h-1 rounded-full bg-slate-300"></div>
-            Powered by CipherX Inc.
-          </div>
-        </div>
-      </section>
-
-      {/* 4. Settings & Support Suite */}
+      {/* Professional Settings & Support Suite */}
       <section className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-4 sm:p-6 shadow-sm border border-slate-100 dark:border-slate-800 space-y-2">
         <div className="px-4 py-2 mb-2">
           <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Settings & Support</h3>
         </div>
 
-        {/* Help Centre */}
+        {/* 1. Help Centre */}
         <button 
           onClick={() => setActiveModal('help')}
           className="w-full flex items-center gap-4 p-4 rounded-3xl hover:bg-slate-50 dark:hover:bg-slate-950 transition-all group"
@@ -171,12 +117,12 @@ const Profile: React.FC<ProfileProps> = ({ user, onUpload, onTriggerUpgrade, onL
           <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 rounded-2xl flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform text-2xl">❓</div>
           <div className="flex-1 text-left">
             <h4 className="text-sm font-black text-slate-800 dark:text-white">Help Centre</h4>
-            <p className="text-[10px] font-bold text-slate-500 tracking-tight">Tutorials, tips, and FAQ</p>
+            <p className="text-[10px] font-bold text-slate-500 tracking-tight">Get answers, tutorials, and tips for using TutorX.</p>
           </div>
           <svg className="w-5 h-5 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M9 5l7 7-7 7" /></svg>
         </button>
 
-        {/* Report Bug */}
+        {/* 2. Report Bug */}
         <button 
           onClick={() => setActiveModal('bug')}
           className="w-full flex items-center gap-4 p-4 rounded-3xl hover:bg-slate-50 dark:hover:bg-slate-950 transition-all group"
@@ -184,18 +130,18 @@ const Profile: React.FC<ProfileProps> = ({ user, onUpload, onTriggerUpgrade, onL
           <div className="w-12 h-12 bg-rose-50 dark:bg-rose-900/20 rounded-2xl flex items-center justify-center text-rose-600 group-hover:scale-110 transition-transform text-2xl">🐞</div>
           <div className="flex-1 text-left">
             <h4 className="text-sm font-black text-slate-800 dark:text-white">Report a Bug</h4>
-            <p className="text-[10px] font-bold text-slate-500 tracking-tight">Found a problem? Let us know.</p>
+            <p className="text-[10px] font-bold text-slate-500 tracking-tight">Found a problem? Let us know so we can fix it.</p>
           </div>
           <svg className="w-5 h-5 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M9 5l7 7-7 7" /></svg>
         </button>
 
-        {/* App Language */}
+        {/* 3. App Language */}
         <div className="relative">
           <div className="w-full flex items-center gap-4 p-4 rounded-3xl group">
             <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center text-emerald-600 text-2xl">🌐</div>
             <div className="flex-1 text-left">
               <h4 className="text-sm font-black text-slate-800 dark:text-white">App Language</h4>
-              <p className="text-[10px] font-bold text-slate-500 tracking-tight">Select your preferred interface language.</p>
+              <p className="text-[10px] font-bold text-slate-500 tracking-tight">Select the language you want to use in TutorX.</p>
             </div>
             <select 
               value={currentLanguage} 
@@ -215,12 +161,12 @@ const Profile: React.FC<ProfileProps> = ({ user, onUpload, onTriggerUpgrade, onL
           )}
         </div>
 
-        {/* Contact Support */}
+        {/* 4. Contact Support */}
         <div className="p-4 space-y-4">
           <div className="bg-slate-50 dark:bg-slate-950 rounded-[2rem] p-6 border border-slate-100 dark:border-slate-800 space-y-4">
             <div>
               <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest">Contact Support</h4>
-              <p className="text-[10px] font-bold text-slate-500 leading-relaxed mt-1">Reach out to CipherX Inc for any help or feedback. We respond within 24 hours.</p>
+              <p className="text-[10px] font-bold text-slate-500 leading-relaxed mt-1">Need help? Reach out to CipherX Inc anytime. We respond within 24 hours.</p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <a href="mailto:cipherxinc@gmail.com" className="flex-1 flex items-center justify-center gap-2 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl hover:border-indigo-500 transition-all group">
@@ -235,21 +181,21 @@ const Profile: React.FC<ProfileProps> = ({ user, onUpload, onTriggerUpgrade, onL
           </div>
         </div>
 
-        {/* Legal Row */}
+        {/* 5. Legal Row */}
         <div className="flex border-t border-slate-50 dark:border-slate-800 pt-4 px-4 gap-6">
           <button onClick={() => setActiveModal('terms')} className="text-[10px] font-black text-slate-400 hover:text-indigo-600 uppercase tracking-widest">Terms of Use</button>
           <button onClick={() => setActiveModal('privacy')} className="text-[10px] font-black text-slate-400 hover:text-indigo-600 uppercase tracking-widest">Privacy Policy</button>
         </div>
       </section>
 
-      {/* Footer Branding */}
+      {/* Logout & Version */}
       <section className="px-4 space-y-6">
         <button 
           onClick={onLogout}
-          className="w-full py-5 bg-rose-500 hover:bg-rose-600 text-white rounded-[2rem] font-black text-xs uppercase tracking-[0.3em] shadow-xl shadow-rose-200 dark:shadow-none transition-all active:scale-95 flex items-center justify-center gap-3"
+          className="w-full py-5 bg-rose-500 hover:bg-rose-600 text-white rounded-[2rem] font-black text-xs uppercase tracking-[0.3em] shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-          Terminate Neural Session
+          Sign Out
         </button>
         <div className="text-center space-y-2">
           <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.4em]">TutorX v1.0.0</p>
@@ -257,19 +203,19 @@ const Profile: React.FC<ProfileProps> = ({ user, onUpload, onTriggerUpgrade, onL
         </div>
       </section>
 
-      {/* MODALS */}
+      {/* Modals Implementation */}
       {activeModal === 'bug' && (
-        <ModalContainer title="Report a Bug" subtitle="Found a problem? Let us know." onClose={() => setActiveModal(null)}>
+        <ModalContainer title="Report a Bug" subtitle="Let us know what's wrong." onClose={() => setActiveModal(null)}>
           {bugSubmitted ? (
             <div className="text-center py-12 animate-in zoom-in duration-300">
               <div className="text-6xl mb-4">✅</div>
-              <h4 className="text-xl font-black text-slate-800 dark:text-white">Report Received!</h4>
-              <p className="text-sm font-bold text-slate-500 mt-2">Thank you! We’ve received your report and will fix it soon.</p>
+              <h4 className="text-xl font-black text-slate-800 dark:text-white">Submission Successful</h4>
+              <p className="text-sm font-bold text-slate-500 mt-2">Thank you! We’ve received your report.</p>
             </div>
           ) : (
             <form onSubmit={handleBugSubmit} className="space-y-6">
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Issue Details</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Issue Description</label>
                 <textarea 
                   value={bugDescription}
                   onChange={(e) => setBugDescription(e.target.value)}
@@ -288,7 +234,7 @@ const Profile: React.FC<ProfileProps> = ({ user, onUpload, onTriggerUpgrade, onL
       )}
 
       {activeModal === 'help' && (
-        <ModalContainer title="Help Centre" subtitle="Tutorials & Tips" onClose={() => setActiveModal(null)}>
+        <ModalContainer title="Help Centre" subtitle="Tutorials & Documentation" onClose={() => setActiveModal(null)}>
           <div className="space-y-6">
             <div className="relative">
               <input type="text" placeholder="Search help articles…" className="w-full pl-12 pr-6 py-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 text-sm font-bold outline-none" />
@@ -308,45 +254,37 @@ const Profile: React.FC<ProfileProps> = ({ user, onUpload, onTriggerUpgrade, onL
 
       {activeModal === 'terms' && (
         <ModalContainer title="Terms of Use" subtitle="Rules & Conditions" onClose={() => setActiveModal(null)}>
-          <div className="prose prose-sm dark:prose-invert">
+          <div className="prose prose-sm dark:prose-invert space-y-4">
             <p className="font-bold text-slate-600 dark:text-slate-300 leading-relaxed">
-              By using TutorX, you agree to the following terms provided by CipherX Inc. TutorX is an AI-powered educational tool meant to supplement learning. 
-              Users must not use the platform for academic dishonesty or cheating on live examinations where prohibited.
+              Read the rules and conditions for using TutorX. By accessing the platform, you agree to comply with our academic integrity standards.
             </p>
-            <h4 className="font-black text-slate-800 dark:text-white uppercase tracking-tighter mt-6">Usage Rules</h4>
-            <ul className="list-disc pl-5 space-y-2 text-slate-500">
-              <li>One account per user.</li>
-              <li>Respect intellectual property of generated content.</li>
-              <li>Subscription data is managed via Yoco secure links.</li>
-            </ul>
-            <button onClick={() => setActiveModal(null)} className="w-full py-4 mt-8 bg-slate-900 dark:bg-slate-800 text-white rounded-2xl font-black text-xs uppercase tracking-widest">Accept & Continue</button>
+            <h4 className="font-black text-slate-800 dark:text-white uppercase tracking-tighter">Usage Agreement</h4>
+            <p className="text-sm text-slate-500">TutorX is an AI aid. While we strive for accuracy, users are responsible for final verification of academic work.</p>
+            <button onClick={() => setActiveModal(null)} className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest mt-6">Accept & Continue</button>
           </div>
         </ModalContainer>
       )}
 
       {activeModal === 'privacy' && (
-        <ModalContainer title="Privacy Policy" subtitle="Your Data Protection" onClose={() => setActiveModal(null)}>
+        <ModalContainer title="Privacy Policy" subtitle="How we protect your data" onClose={() => setActiveModal(null)}>
           <div className="prose prose-sm dark:prose-invert space-y-4">
             <p className="font-bold text-slate-600 dark:text-slate-300 leading-relaxed">
-              Your privacy is our priority at CipherX Inc. We collect minimal data to provide a personalized learning experience.
+              We take your privacy seriously. Here is how your data is handled at TutorX:
             </p>
             <div className="space-y-4">
               <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800">
                 <h5 className="text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-1">Chat Memory</h5>
-                <p className="text-[11px] font-bold text-slate-500">We store conversation history to improve tutor responses and adapt to your learning style.</p>
+                <p className="text-[11px] font-bold text-slate-500">History is used to maintain context in your current learning session and personalized tutor memory.</p>
               </div>
               <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800">
-                <h5 className="text-[10px] font-black uppercase tracking-widest text-emerald-50 mb-1">OCR & Math Guru</h5>
-                <p className="text-[11px] font-bold text-slate-500">Image uploads for problem solving are processed temporarily and not used for marketing.</p>
+                <h5 className="text-[10px] font-black uppercase tracking-widest text-emerald-500 mb-1">OCR Scans</h5>
+                <p className="text-[11px] font-bold text-slate-500">Math problem images are processed temporarily for analysis and are not stored for marketing.</p>
               </div>
               <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800">
                 <h5 className="text-[10px] font-black uppercase tracking-widest text-rose-500 mb-1">Payment Data</h5>
-                <p className="text-[11px] font-bold text-slate-500">Financial transactions are handled exclusively by Yoco. TutorX never stores your credit card details.</p>
+                <p className="text-[11px] font-bold text-slate-500">All financial transactions are handled securely by Yoco. We never store credit card information.</p>
               </div>
             </div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center pt-4 italic">
-              All data is encrypted in transit and at rest.
-            </p>
           </div>
         </ModalContainer>
       )}
