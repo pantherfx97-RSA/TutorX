@@ -1,146 +1,246 @@
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { 
+  LayoutDashboard, 
+  BookOpen, 
+  Calculator, 
+  Brain,
+  Map, 
+  CreditCard, 
+  User, 
+  LogOut, 
+  Menu, 
+  X,
+  Sparkles,
+  Zap,
+  TrendingUp,
+  Bookmark,
+  Settings
+} from 'lucide-react';
+import { UserProfile } from '../types';
+import { firebaseService } from '../services/firebaseService';
 
-import React from 'react';
-import { DEVELOPER_CREDIT, APP_NAME } from '../constants';
-import { AppScreen } from '../types';
+import Footer from './Footer';
 
 interface LayoutProps {
   children: React.ReactNode;
-  userEmail?: string;
-  onLogout?: () => void;
-  onNavigate?: (screen: AppScreen) => void;
-  isDarkMode?: boolean;
-  toggleDarkMode?: () => void;
-  activeScreen?: AppScreen;
+  profile: UserProfile;
+  activeView: string;
+  onViewChange: (view: string) => void;
+  onUpgradeClick: () => void;
 }
 
 const Layout: React.FC<LayoutProps> = ({ 
   children, 
-  userEmail, 
-  onLogout, 
-  onNavigate, 
-  isDarkMode, 
-  toggleDarkMode,
-  activeScreen
+  profile, 
+  activeView, 
+  onViewChange,
+  onUpgradeClick
 }) => {
-  const isDashboard = activeScreen === AppScreen.DASHBOARD;
-  const isProfile = activeScreen === AppScreen.PROFILE;
-  const isPlans = activeScreen === AppScreen.PLANS;
-  const isLearning = activeScreen === AppScreen.LEARNING;
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const navItems = [
+    { id: 'Dashboard', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
+    { id: 'Masterclasses', icon: <BookOpen size={20} />, label: 'Masterclasses' },
+    { id: 'Progress', icon: <TrendingUp size={20} />, label: 'Progress' },
+    { id: 'Saved', icon: <Bookmark size={20} />, label: 'Saved' },
+    { id: 'AITutor', icon: <Brain size={20} />, label: 'AI Tutor' },
+    { id: 'MathGuru', icon: <Calculator size={20} />, label: 'Math Guru' },
+    { id: 'Settings', icon: <Settings size={20} />, label: 'Settings' },
+    { id: 'Profile', icon: <User size={20} />, label: 'Profile' },
+  ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
-      {/* Top Header */}
-      <header className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 sticky top-0 z-50">
-        <div className="max-w-4xl mx-auto flex justify-between items-center h-16 px-4">
-          <div 
-            className="flex items-center space-x-3 cursor-pointer group"
-            onClick={() => onNavigate?.(AppScreen.DASHBOARD)}
-          >
-            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200 dark:shadow-none transform transition-all group-hover:rotate-12 group-hover:scale-110 active:scale-90">
-              <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-6 h-6">
-                <path d="M18 18L46 46" stroke="white" strokeWidth="8" strokeLinecap="round" />
-                <path d="M46 18L18 46" stroke="white" strokeWidth="8" strokeLinecap="round" strokeOpacity="0.4" />
-                <circle cx="32" cy="32" r="5" fill="white" className="animate-pulse" />
-              </svg>
-            </div>
-            <h1 className="text-xl font-black tracking-tighter text-slate-800 dark:text-slate-100">
-              Tutor<span className="text-indigo-600 dark:text-indigo-400">X</span>
-            </h1>
+    <div className="min-h-screen bg-slate-950 flex font-sans selection:bg-indigo-500/30 selection:text-white text-slate-100">
+      {/* Sidebar - Desktop */}
+      <aside className="hidden lg:flex w-80 flex-col bg-slate-950 border-r border-white/5 p-8 fixed h-full z-40">
+        <div className="flex items-center gap-4 mb-14 px-2">
+          <div className="w-12 h-12 rounded-[1.25rem] bg-indigo-600 text-white flex items-center justify-center shadow-2xl shadow-indigo-500/20 relative overflow-hidden group">
+            <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <Brain size={26} className="relative z-10" />
           </div>
-          
-          <div className="flex items-center space-x-2">
-            {/* Desktop Navigation */}
-            {userEmail && (
-              <nav className="hidden md:flex items-center space-x-1 mr-2">
-                <button
-                  onClick={() => onNavigate?.(AppScreen.PLANS)}
-                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isPlans ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                >
-                  Membership
-                </button>
-                <button
-                  onClick={() => onNavigate?.(AppScreen.PROFILE)}
-                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isProfile ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                >
-                  Profile
-                </button>
-              </nav>
-            )}
+          <span className="text-3xl font-black tracking-tighter text-white font-display">TutorX</span>
+        </div>
 
-            {/* Dark Mode Toggle */}
+        <nav className="flex-1 space-y-2">
+          {navItems.map(item => (
             <button
-              onClick={toggleDarkMode}
-              className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all border border-slate-200 dark:border-slate-700 active:scale-90"
+              key={item.id}
+              onClick={() => onViewChange(item.id)}
+              className={`w-full flex items-center gap-4 px-6 py-4 rounded-[1.5rem] font-bold transition-all duration-500 group relative overflow-hidden ${
+                activeView === item.id 
+                  ? 'text-white' 
+                  : 'text-slate-500 hover:bg-white/5 hover:text-white'
+              }`}
             >
-              {isDarkMode ? (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" /></svg>
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" /></svg>
+              <span className={`transition-transform duration-500 relative z-10 ${activeView === item.id ? 'scale-110' : 'group-hover:scale-110'}`}>
+                {item.icon}
+              </span>
+              <span className="tracking-tight relative z-10 text-lg">{item.label}</span>
+              {activeView === item.id && (
+                <motion.div 
+                  layoutId="nav-active"
+                  className="absolute inset-0 bg-indigo-600 shadow-lg shadow-indigo-500/20"
+                  transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                />
               )}
             </button>
+          ))}
+        </nav>
 
-            {userEmail && (
+        <div className="mt-auto space-y-8">
+          <div className="bg-slate-900/50 border border-white/5 rounded-[2.5rem] p-8 text-white relative overflow-hidden group shadow-2xl">
+            <div className="relative z-10">
+              <div className="flex items-center gap-3 text-indigo-400 font-black uppercase tracking-[0.25em] text-[11px] mb-4">
+                <Zap size={14} fill="currentColor" className="animate-pulse" />
+                Neural Capacity
+              </div>
+              <div className="w-full bg-white/5 rounded-full h-2 mb-3">
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: '40%' }}
+                  className="bg-gradient-to-r from-indigo-500 to-purple-500 h-full rounded-full shadow-[0_0_15px_rgba(99,102,241,0.6)]"
+                />
+              </div>
+              <p className="text-[11px] text-slate-500 font-bold mb-6">4/10 Daily Questions Used</p>
               <button 
-                onClick={onLogout}
-                className="bg-slate-900 dark:bg-slate-800 hover:bg-indigo-600 dark:hover:bg-indigo-600 text-white px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg flex items-center gap-2"
+                onClick={onUpgradeClick}
+                className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-xl shadow-indigo-500/20 hover:-translate-y-0.5 active:translate-y-0"
               >
-                <span className="hidden xs:inline">Log Out</span>
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                Evolve to Pro
               </button>
-            )}
+            </div>
+            <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-indigo-600 rounded-full opacity-10 blur-3xl group-hover:opacity-20 transition-opacity"></div>
           </div>
-        </div>
-      </header>
 
-      {/* Main Content Area */}
-      <main className={`flex-grow max-w-4xl w-full mx-auto p-4 sm:p-6 transition-all duration-300 ${userEmail ? 'mb-24 sm:mb-16' : 'mb-0'}`}>
-        {children}
+          <button 
+            onClick={() => firebaseService.logout()}
+            className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold text-slate-500 hover:text-red-400 hover:bg-red-400/5 transition-all group"
+          >
+            <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center group-hover:bg-red-400/10 transition-colors">
+              <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" />
+            </div>
+            <span className="tracking-tight text-lg">Sign Out</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 lg:ml-80 min-h-screen flex flex-col w-full max-w-full overflow-x-hidden">
+        {/* Header - Mobile & Desktop */}
+        <header className="h-20 md:h-28 bg-slate-950/50 backdrop-blur-2xl border-b border-white/5 sticky top-0 z-30 px-6 md:px-12 flex items-center justify-between">
+          <button 
+            onClick={() => setIsMobileMenuOpen(true)}
+            className="lg:hidden p-3 md:p-4 bg-white/5 rounded-2xl text-slate-400 hover:bg-white/10 transition-all active:scale-95"
+          >
+            <Menu className="w-6 h-6 md:w-7 md:h-7" />
+          </button>
+
+          <div className="flex items-center gap-6 ml-auto">
+            <div className="hidden sm:flex flex-col items-end">
+              <p className="text-lg font-black text-white font-display tracking-tight">{profile.fullName}</p>
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-indigo-400">{profile.tier} Member</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => onViewChange('Profile')}
+              className="w-14 h-14 rounded-[1.25rem] bg-slate-900 text-white flex items-center justify-center font-black text-xl overflow-hidden border-4 border-white/5 shadow-2xl hover:scale-110 transition-all active:scale-95 relative group"
+            >
+              <div className="absolute inset-0 bg-indigo-600 opacity-0 group-hover:opacity-10 transition-opacity" />
+              {profile.fullName.charAt(0)}
+            </button>
+          </div>
+        </header>
+
+        {/* View Content */}
+        <div className="flex-1">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeView}
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -30 }}
+              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+              className="h-full"
+            >
+              {children}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        <Footer 
+          onPrivacyClick={() => onViewChange('Privacy')}
+          onTermsClick={() => onViewChange('Terms')}
+          onContactClick={() => onViewChange('Contact')}
+        />
       </main>
 
-      {/* Mobile Bottom Navigation */}
-      {userEmail && (
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-t border-slate-100 dark:border-slate-800 px-6 py-4 flex justify-between items-center shadow-[0_-10px_25px_rgba(0,0,0,0.05)]">
-          <button 
-            onClick={() => onNavigate?.(AppScreen.DASHBOARD)}
-            className={`flex flex-col items-center gap-1 transition-all ${isDashboard || isLearning ? 'text-indigo-600 scale-110' : 'text-slate-400'}`}
-          >
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={isDashboard || isLearning ? 3 : 2}><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
-            <span className="text-[9px] font-black uppercase tracking-tighter">Study</span>
-          </button>
-          
-          <button 
-            onClick={() => onNavigate?.(AppScreen.PLANS)}
-            className={`flex flex-col items-center gap-1 transition-all ${isPlans ? 'text-indigo-600 scale-110' : 'text-slate-400'}`}
-          >
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={isPlans ? 3 : 2}><path d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-7.714 2.143L11 21l-2.286-6.857L1 12l7.714-2.143L11 3z" /></svg>
-            <span className="text-[9px] font-black uppercase tracking-tighter">Plans</span>
-          </button>
+      {/* Mobile Menu Overlay */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[60] lg:hidden"
+            />
+            <motion.div
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed inset-y-0 left-0 w-80 bg-slate-950 z-[70] lg:hidden p-8 flex flex-col shadow-2xl border-r border-white/5"
+            >
+              <div className="flex items-center justify-between mb-12">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                    <Brain size={20} />
+                  </div>
+                  <span className="text-2xl font-black tracking-tighter font-display text-white">TutorX</span>
+                </div>
+                <button 
+                  onClick={() => setIsMobileMenuOpen(false)} 
+                  className="p-2 bg-white/5 rounded-xl text-slate-400 hover:bg-white/10 transition-colors"
+                >
+                  <X size={24} />
+                </button>
+              </div>
 
-          <button 
-            onClick={() => onNavigate?.(AppScreen.PROFILE)}
-            className={`flex flex-col items-center gap-1 transition-all ${isProfile ? 'text-indigo-600 scale-110' : 'text-slate-400'}`}
-          >
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={isProfile ? 3 : 2}><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-            <span className="text-[9px] font-black uppercase tracking-tighter">Profile</span>
-          </button>
-        </nav>
-      )}
+              <nav className="flex-1 space-y-2">
+                {navItems.map(item => (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      onViewChange(item.id);
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl font-bold transition-all ${
+                      activeView === item.id 
+                        ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/20' 
+                        : 'text-slate-500 hover:bg-white/5 hover:text-white'
+                    }`}
+                  >
+                    {item.icon}
+                    <span className="tracking-tight">{item.label}</span>
+                  </button>
+                ))}
+              </nav>
 
-      {/* Footer Acknowledgment (Desktop only or static) */}
-      <footer className="hidden sm:block bg-slate-100 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 p-8 transition-colors duration-300">
-        <div className="max-w-4xl mx-auto text-center space-y-4">
-          <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em]">
-            {DEVELOPER_CREDIT}
-          </p>
-          <div className="flex justify-center space-x-6 text-[10px] font-black uppercase tracking-widest text-slate-300 dark:text-slate-700">
-            <span>&copy; {new Date().getFullYear()} TutorX</span>
-            <span className="w-1 h-1 bg-slate-300 dark:bg-slate-700 rounded-full my-auto"></span>
-            <span>AI Masterclass Engine</span>
-            <span className="w-1 h-1 bg-slate-300 dark:bg-slate-700 rounded-full my-auto"></span>
-            <span>Build v1.2.1</span>
-          </div>
-        </div>
-      </footer>
+              <button 
+                onClick={() => firebaseService.logout()}
+                className="mt-auto flex items-center gap-4 px-5 py-4 rounded-2xl font-bold text-red-500 hover:bg-red-500/5 transition-all"
+              >
+                <LogOut size={20} />
+                <span className="tracking-tight">Sign Out</span>
+              </button>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

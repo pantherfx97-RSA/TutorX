@@ -1,70 +1,149 @@
-
+import { 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword,
+  signOut,
+  User,
+  getAuth
+} from 'firebase/auth';
+import { 
+  doc, 
+  getDoc, 
+  setDoc, 
+  updateDoc, 
+  arrayUnion, 
+  increment,
+  serverTimestamp 
+} from 'firebase/firestore';
+import { db } from '../firebase';
 import { UserProfile, SubscriptionTier } from '../types';
 
-export const mockAuth = {
-  currentUser: null as UserProfile | null,
-  
-  login: async (email: string, pass: string): Promise<UserProfile> => {
-    await new Promise(r => setTimeout(r, 1000));
-    const stored = localStorage.getItem('tutorx_user');
-    const user: UserProfile = stored ? JSON.parse(stored) : {
-      email,
-      learningProgress: 0,
-      completedTopics: [],
-      quizScores: [],
-      tier: SubscriptionTier.FREE,
-      streak: 0,
-      questionsAskedToday: 0,
-      uploadedDocuments: []
-    };
-    mockAuth.currentUser = user;
-    localStorage.setItem('tutorx_user', JSON.stringify(user));
-    return user;
+let isAuthOperationPending = false;
+
+export const firebaseService = {
+  loginWithGoogle: async (): Promise<User> => {
+    const auth = getAuth();
+    if (isAuthOperationPending) {
+      if (auth.currentUser) return auth.currentUser;
+      throw new Error("An authentication operation is already in progress.");
+    }
+    isAuthOperationPending = true;
+    try {
+      console.log("Starting Google Login...");
+      console.log("Auth object type:", typeof auth);
+      const provider = new GoogleAuthProvider();
+      console.log("Provider created:", !!provider);
+      
+      if (!auth || !provider) {
+        throw new Error("Firebase Auth or Provider not initialized correctly.");
+      }
+
+      const userCredential = await signInWithPopup(auth, provider);
+      const user = userCredential.user;
+      
+      const docRef = doc(db, 'users', user.uid);
+      const docSnap = await getDoc(docRef);
+      
+      if (!docSnap.exists()) {
+        const initialProfile: UserProfile = {
+          email: user.email || '',
+          fullName: user.displayName || 'Google User',
+          role: 'Student',
+          createdAt: serverTimestamp(),
+          learningProgress: 0,
+          xp: 0,
+          completedTopics: [],
+          quizScores: [],
+          tier: SubscriptionTier.FREE,
+          streak: 0,
+          questionsAskedToday: 0,
+          uploadedDocuments: [],
+          completedMasterclasses: []
+        };
+        await setDoc(docRef, initialProfile);
+      }
+      return user;
+    } finally {
+      isAuthOperationPending = false;
+    }
   },
 
-  register: async (email: string, pass: string): Promise<UserProfile> => {
-    await new Promise(r => setTimeout(r, 1000));
-    const user: UserProfile = {
-      email,
-      learningProgress: 0,
-      completedTopics: [],
-      quizScores: [],
-      tier: SubscriptionTier.FREE,
-      streak: 0,
-      questionsAskedToday: 0,
-      uploadedDocuments: []
-    };
-    mockAuth.currentUser = user;
-    localStorage.setItem('tutorx_user', JSON.stringify(user));
-    return user;
+  loginUser: async (email: string, pass: string): Promise<User> => {
+    const auth = getAuth();
+    if (isAuthOperationPending) throw new Error("An authentication operation is already in progress.");
+    isAuthOperationPending = true;
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, pass);
+      return userCredential.user;
+    } finally {
+      isAuthOperationPending = false;
+    }
   },
 
-  upgradeTier: async (tier: SubscriptionTier): Promise<UserProfile> => {
-    await new Promise(r => setTimeout(r, 1500)); // Simulate Yoco processing
-    if (!mockAuth.currentUser) throw new Error("No user logged in");
-    const updatedUser = { ...mockAuth.currentUser, tier };
-    mockAuth.currentUser = updatedUser;
-    localStorage.setItem('tutorx_user', JSON.stringify(updatedUser));
-    return updatedUser;
+  registerUser: async (email: string, pass: string, fullName: string, userType: 'Tutor' | 'Student'): Promise<User> => {
+    const auth = getAuth();
+    if (isAuthOperationPending) throw new Error("An authentication operation is already in progress.");
+    isAuthOperationPending = true;
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+      const user = userCredential.user;
+      
+      const initialProfile: UserProfile = {
+        email,
+        fullName,
+        role: userType,
+        createdAt: serverTimestamp(),
+        learningProgress: 0,
+        xp: 0,
+        completedTopics: [],
+        quizScores: [],
+        tier: SubscriptionTier.FREE,
+        streak: 0,
+        questionsAskedToday: 0,
+        uploadedDocuments: [],
+        completedMasterclasses: []
+      };
+      
+      await setDoc(doc(db, 'users', user.uid), initialProfile);
+      return user;
+    } finally {
+      isAuthOperationPending = false;
+    }
   },
 
-  resetPassword: async (email: string): Promise<void> => {
-    await new Promise(r => setTimeout(r, 800));
+  logout: () => signOut(getAuth()),
+
+  getUserProfile: async (uid: string): Promise<UserProfile | null> => {
+    const docSnap = await getDoc(doc(db, 'users', uid));
+    return docSnap.exists() ? docSnap.data() as UserProfile : null;
   },
 
-  logout: () => {
-    mockAuth.currentUser = null;
-    localStorage.removeItem('tutorx_user');
+  updateProgress: async (uid: string, topic: string) => {
+    await updateDoc(doc(db, 'users', uid), {
+      completedTopics: arrayUnion(topic),
+      learningProgress: increment(5),
+      xp: increment(100)
+    });
   },
 
-  getStoredUser: (): UserProfile | null => {
-    const data = localStorage.getItem('tutorx_user');
-    return data ? JSON.parse(data) : null;
-  }
-};
-
-export const mockFirestore = {
-  saveProgress: async (userEmail: string, data: any) => {
-    console.log(`Saving progress for ${userEmail}:`, data);
+  toggleBookmark: async (uid: string, topic: string, difficulty: string) => {
+    const docRef = doc(db, 'users', uid);
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) return;
+    
+    const profile = docSnap.data() as UserProfile;
+    const bookmarks = profile.bookmarkedLessons || [];
+    const existingIndex = bookmarks.findIndex(b => b.topic === topic);
+    
+    let newBookmarks;
+    if (existingIndex > -1) {
+      newBookmarks = bookmarks.filter(b => b.topic !== topic);
+    } else {
+      newBookmarks = [...bookmarks, { topic, difficulty, date: new Date().toISOString() }];
+    }
+    
+    await updateDoc(docRef, { bookmarkedLessons: newBookmarks });
+    return newBookmarks;
   }
 };

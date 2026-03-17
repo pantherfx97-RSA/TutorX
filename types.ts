@@ -1,73 +1,76 @@
-
-export enum DifficultyLevel {
-  BEGINNER = 'Beginner',
-  INTERMEDIATE = 'Intermediate',
-  ADVANCED = 'Advanced'
-}
-
 export enum SubscriptionTier {
   FREE = 'FREE',
-  PREMIUM = 'PREMIUM',
-  PRO = 'PRO'
-}
-
-export type TutorMode = 'general' | 'exam' | 'slow' | 'quick' | 'university' | 'eli10' | 'auto' | 'math_guru';
-
-export interface QuizQuestion {
-  question: string;
-  options: string[];
-  correct_answer: string;
-}
-
-export interface NextTopic {
-  topic: string;
-  difficulty: string;
-}
-
-export interface LessonContent {
-  topic: string;
-  lesson: string;
-  summary: string[];
-  quiz: QuizQuestion[];
-  next_topics: NextTopic[];
-}
-
-export interface QuizScoreRecord {
-  topic: string;
-  score: number;
-  date: number;
-  difficulty: DifficultyLevel;
-}
-
-export interface UserDocument {
-  name: string;
-  type: string;
-  data: string;
-  date: number;
+  PRO = 'PRO',
+  ENTERPRISE = 'ENTERPRISE'
 }
 
 export interface UserProfile {
   email: string;
-  displayName?: string;
-  learningProgress: number; 
+  fullName: string;
+  role: 'Tutor' | 'Student';
+  createdAt: any;
+  learningProgress: number;
+  xp: number;
   completedTopics: string[];
-  quizScores: QuizScoreRecord[];
+  quizScores: { topic: string; score: number; date: any }[];
   tier: SubscriptionTier;
   streak: number;
-  lastActiveDate?: number;
   questionsAskedToday: number;
-  lastQuestionDate?: number;
-  uploadedDocuments?: UserDocument[];
+  uploadedDocuments: string[];
+  completedMasterclasses: { masterclassId: string; completedLessons: string[] }[];
+  bookmarkedLessons?: { topic: string; difficulty: string; date: string }[];
 }
 
-export enum AppScreen {
-  LANDING = 'landing',
-  LOGIN = 'login',
-  REGISTER = 'register',
-  FORGOT_PASSWORD = 'forgot_password',
-  DASHBOARD = 'dashboard',
-  PROFILE = 'profile',
-  LEARNING = 'learning',
-  PLANS = 'plans',
-  MATH_GURU = 'math_guru'
+export interface Masterclass {
+  id: string;
+  title: string;
+  description: string;
+  instructor: string;
+  instructorTitle: string;
+  instructorImage?: string;
+  thumbnail: string;
+  duration: string;
+  level: 'Beginner' | 'Intermediate' | 'Advanced';
+  category: string;
+  modules: MasterclassModule[];
+}
+
+export interface MasterclassModule {
+  id: string;
+  title: string;
+  lessons: MasterclassLesson[];
+}
+
+export interface MasterclassLesson {
+  id: string;
+  title: string;
+  duration: string;
+  videoUrl?: string;
+  content: string;
+  quiz?: Quiz;
+}
+
+export interface Lesson {
+  id: string;
+  title: string;
+  content: string;
+  topic: string;
+  difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
+}
+
+export interface Quiz {
+  id: string;
+  topic: string;
+  questions: {
+    question: string;
+    options: string[];
+    correctAnswer: number;
+    explanation: string;
+  }[];
+}
+
+export interface ChatMessage {
+  role: 'user' | 'model';
+  text: string;
+  timestamp: number;
 }

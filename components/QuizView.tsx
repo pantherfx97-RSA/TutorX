@@ -1,202 +1,302 @@
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { 
+  Brain, 
+  Sparkles, 
+  ChevronRight, 
+  CheckCircle2, 
+  XCircle, 
+  Timer, 
+  Trophy, 
+  Zap, 
+  ArrowLeft,
+  RefreshCcw,
+  Plus,
+  MessageSquare,
+  GraduationCap
+} from 'lucide-react';
+import { geminiService } from '../services/geminiService';
 
-import React, { useState } from 'react';
-import { QuizQuestion } from '../types';
-
-interface QuizViewProps {
-  questions: QuizQuestion[];
-  onComplete: (score: number) => void;
+interface Question {
+  id: string;
+  question: string;
+  options: string[];
+  correctAnswer: number;
+  explanation: string;
 }
 
-const QuizView: React.FC<QuizViewProps> = ({ questions, onComplete }) => {
-  const [currentIdx, setCurrentIdx] = useState(0);
-  const [selectedOption, setSelectedOption] = useState<string | null>(null);
-  const [isAnswered, setIsAnswered] = useState(false);
-  const [correctCount, setCorrectCount] = useState(0);
-  const [userAnswers, setUserAnswers] = useState<string[]>([]);
-  const [showResults, setShowResults] = useState(false);
+interface QuizViewProps {
+  topic: string;
+  onComplete: (score: number) => void;
+  onBack: () => void;
+}
 
-  const handleSelect = (option: string) => {
-    if (isAnswered) return;
-    setSelectedOption(option);
-  };
+const QuizView: React.FC<QuizViewProps> = ({ topic: initialTopic, onComplete, onBack }) => {
+  const [topic, setTopic] = useState(initialTopic);
+  const [loading, setLoading] = useState(false);
+  const [quiz, setQuiz] = useState<Question[] | null>(null);
+  const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
+  const [selectedOption, setSelectedOption] = useState<number | null>(null);
+  const [score, setScore] = useState(0);
+  const [showResult, setShowResult] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(30);
+  const [isQuizStarted, setIsQuizStarted] = useState(false);
 
-  const checkAnswer = () => {
-    if (!selectedOption) return;
-    
-    const isCorrect = selectedOption === questions[currentIdx].correct_answer;
-    if (isCorrect) setCorrectCount(prev => prev + 1);
-    
-    setUserAnswers(prev => [...prev, selectedOption]);
-    setIsAnswered(true);
-  };
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (isQuizStarted && !showResult && timeLeft > 0) {
+      timer = setInterval(() => {
+        setTimeLeft((prev) => prev - 1);
+      }, 1000);
+    } else if (timeLeft === 0 && !showResult) {
+      handleNextQuestion();
+    }
+    return () => clearInterval(timer);
+  }, [isQuizStarted, showResult, timeLeft]);
 
-  const handleNext = () => {
-    if (currentIdx < questions.length - 1) {
-      setCurrentIdx(currentIdx + 1);
-      setSelectedOption(null);
-      setIsAnswered(false);
-    } else {
-      setShowResults(true);
+  const handleGenerateQuiz = async () => {
+    if (!topic.trim()) return;
+    setLoading(true);
+    try {
+      const questions = await geminiService.generateQuiz(topic, 'Intermediate', 5);
+      setQuiz(questions);
+      setIsQuizStarted(true);
+      setCurrentQuestionIdx(0);
+      setScore(0);
+      setShowResult(false);
+      setTimeLeft(30);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleRetry = () => {
-    setCurrentIdx(0);
-    setSelectedOption(null);
-    setIsAnswered(false);
-    setCorrectCount(0);
-    setUserAnswers([]);
-    setShowResults(false);
+  const handleOptionSelect = (idx: number) => {
+    if (selectedOption !== null) return;
+    setSelectedOption(idx);
+    if (idx === quiz![currentQuestionIdx].correctAnswer) {
+      setScore((prev) => prev + 1);
+    }
   };
 
-  const handleFinalSubmit = () => {
-    const finalScore = Math.round(((correctCount) / questions.length) * 100);
-    onComplete(finalScore);
+  const handleNextQuestion = () => {
+    if (currentQuestionIdx < quiz!.length - 1) {
+      setCurrentQuestionIdx((prev) => prev + 1);
+      setSelectedOption(null);
+      setTimeLeft(30);
+    } else {
+      setShowResult(true);
+    }
   };
 
-  if (showResults) {
-    const finalScore = Math.round(((correctCount) / questions.length) * 100);
-    return (
-      <div className="max-w-xl mx-auto space-y-8 animate-in zoom-in-95 duration-500 pb-10">
-        <div className="text-center space-y-4">
-          <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-indigo-100 dark:bg-indigo-900/30 border-4 border-white dark:border-slate-800 shadow-xl mb-2">
-            <span className="text-3xl font-black text-indigo-600 dark:text-indigo-400">{finalScore}%</span>
-          </div>
-          <h2 className="text-2xl font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">Examination Complete</h2>
-          <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Your score has been processed and ready for neural archival.</p>
-        </div>
-
-        <div className="space-y-6">
-          <h3 className="text-xs font-black uppercase tracking-[0.3em] text-slate-400 ml-1">Answer Key Review</h3>
-          <div className="space-y-4">
-            {questions.map((q, idx) => (
-              <div key={idx} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-6 rounded-[2rem] shadow-sm space-y-3">
-                <div className="flex justify-between items-start">
-                  <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Question {idx + 1}</span>
-                  {userAnswers[idx] === q.correct_answer ? (
-                    <span className="text-[9px] font-black text-emerald-500 uppercase bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded">Correct</span>
-                  ) : (
-                    <span className="text-[9px] font-black text-rose-500 uppercase bg-rose-50 dark:bg-rose-900/20 px-2 py-0.5 rounded">Incorrect</span>
-                  )}
-                </div>
-                <p className="text-sm font-bold text-slate-800 dark:text-slate-200 leading-snug">{q.question}</p>
-                <div className="grid grid-cols-1 gap-2 pt-2">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10 p-3 rounded-xl border border-emerald-100/50 dark:border-emerald-900/30">
-                    <svg className="h-4 w-4 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
-                    <span>Correct: {q.correct_answer}</span>
-                  </div>
-                  {userAnswers[idx] !== q.correct_answer && (
-                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
-                      <svg className="h-4 w-4 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" /></svg>
-                      <span>Your choice: {userAnswers[idx]}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <button
-            onClick={handleRetry}
-            className="py-5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-[1.5rem] font-black text-xs uppercase tracking-[0.2em] transition-all active:scale-95 hover:bg-slate-200 dark:hover:bg-slate-700"
-          >
-            Retry Exam
-          </button>
-          <button
-            onClick={handleFinalSubmit}
-            className="py-5 bg-indigo-600 text-white rounded-[1.5rem] font-black text-xs uppercase tracking-[0.2em] shadow-xl hover:bg-indigo-700 transition-all active:scale-95"
-          >
-            Submit Results
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const currentQuestion = questions[currentIdx];
+  const handleRestart = () => {
+    setIsQuizStarted(false);
+    setQuiz(null);
+    setTopic('');
+    setCurrentQuestionIdx(0);
+    setScore(0);
+    setShowResult(false);
+  };
 
   return (
-    <div className="max-w-xl mx-auto space-y-8 animate-in zoom-in-95 duration-300">
-      {/* Progress Bar */}
-      <div className="space-y-2">
-        <div className="flex justify-between text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-          <span>Question {currentIdx + 1} of {questions.length}</span>
-          <span>{Math.round(((currentIdx + 1) / questions.length) * 100)}%</span>
-        </div>
-        <div className="h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden p-0.5">
-          <div 
-            className="h-full bg-indigo-600 rounded-full transition-all duration-500 ease-out"
-            style={{ width: `${((currentIdx + 1) / questions.length) * 100}%` }}
-          />
-        </div>
-      </div>
-
-      <div className="space-y-6">
-        <h3 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-slate-100 leading-tight tracking-tight">
-          {currentQuestion.question}
-        </h3>
-
-        <div className="space-y-3.5">
-          {currentQuestion.options.map((option, idx) => {
-            let stateClass = 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/20';
-            const isCorrect = option === currentQuestion.correct_answer;
-            const isUserSelection = option === selectedOption;
-
-            if (isAnswered) {
-              if (isCorrect) stateClass = 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-500 dark:border-emerald-600 text-emerald-700 dark:text-emerald-300 ring-4 ring-emerald-500/10 animate-success-pop';
-              else if (isUserSelection) stateClass = 'bg-rose-50 dark:bg-rose-900/20 border-rose-500 dark:border-rose-600 text-rose-700 dark:text-rose-300';
-              else stateClass = 'bg-slate-50 dark:bg-slate-800/30 border-slate-100 dark:border-slate-800 opacity-40';
-            } else if (isUserSelection) {
-              stateClass = 'border-indigo-600 dark:border-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 ring-4 ring-indigo-500/10';
-            }
-
-            return (
-              <button
-                key={idx}
-                onClick={() => handleSelect(option)}
-                disabled={isAnswered}
-                className={`w-full p-6 rounded-[1.5rem] border-2 text-left font-bold transition-all flex items-center justify-between group active:scale-[0.99] ${stateClass}`}
+    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 lg:p-12 flex flex-col items-center justify-center">
+      <AnimatePresence mode="wait">
+        {!isQuizStarted ? (
+          <motion.div 
+            key="setup"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="max-w-2xl w-full space-y-12 text-center"
+          >
+            <div className="space-y-6">
+              <motion.div 
+                animate={{ rotate: [0, 10, -10, 0] }}
+                transition={{ repeat: Infinity, duration: 5 }}
+                className="w-24 h-24 rounded-[2.5rem] bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center mx-auto shadow-2xl shadow-indigo-500/10"
               >
-                <span className="text-sm sm:text-base leading-tight">{option}</span>
-                {isAnswered && isCorrect && (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-emerald-500" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                )}
-                {isAnswered && isUserSelection && !isCorrect && (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-rose-500" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                  </svg>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+                <Brain size={48} className="text-indigo-400" />
+              </motion.div>
+              <h1 className="text-4xl md:text-6xl font-black tracking-tight">Neural Quiz Engine</h1>
+              <p className="text-slate-400 text-lg md:text-xl font-medium leading-relaxed">
+                Challenge your knowledge. Generate an AI-powered quiz on any topic in seconds.
+              </p>
+            </div>
 
-      <div className="pt-4">
-        {isAnswered ? (
-          <button
-            onClick={handleNext}
-            className="w-full py-5 bg-slate-800 dark:bg-slate-700 hover:bg-slate-900 dark:hover:bg-slate-600 text-white rounded-[1.5rem] font-black text-xs uppercase tracking-[0.2em] shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3 animate-in fade-in slide-in-from-bottom-2"
+            <div className="relative group">
+              <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-[2rem] blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200" />
+              <div className="relative bg-slate-900 border border-white/10 rounded-[2rem] p-2 flex flex-col sm:flex-row gap-2">
+                <input 
+                  type="text"
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value)}
+                  placeholder="Enter topic (e.g. Photosynthesis, Civil War)"
+                  className="flex-1 bg-transparent py-4 px-6 outline-none font-bold text-lg placeholder:text-slate-600"
+                />
+                <button 
+                  onClick={handleGenerateQuiz}
+                  disabled={loading || !topic.trim()}
+                  className="px-10 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black uppercase tracking-widest text-sm transition-all shadow-xl shadow-indigo-500/20 flex items-center justify-center gap-3 disabled:opacity-50"
+                >
+                  {loading ? <Zap size={18} className="animate-spin" /> : <Zap size={18} />}
+                  Generate Quiz
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {['Math', 'History', 'Science', 'Art'].map((t) => (
+                <button 
+                  key={t}
+                  onClick={() => setTopic(t)}
+                  className="p-4 bg-white/5 hover:bg-white/10 border border-white/5 rounded-2xl text-xs font-black uppercase tracking-widest text-slate-500 hover:text-indigo-400 transition-all"
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        ) : showResult ? (
+          <motion.div 
+            key="result"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="max-w-xl w-full bg-slate-900 border border-white/5 rounded-[3rem] p-12 text-center space-y-8 shadow-2xl"
           >
-            {currentIdx < questions.length - 1 ? 'Proceed to Next' : 'Calculate Results'}
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
-            </svg>
-          </button>
+            <div className="space-y-4">
+              <div className="w-24 h-24 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center mx-auto mb-6">
+                <Trophy size={48} className="text-amber-400" />
+              </div>
+              <h2 className="text-4xl font-black tracking-tight">Quiz Complete!</h2>
+              <p className="text-slate-400 font-medium text-lg">You've successfully completed the neural challenge.</p>
+            </div>
+
+            <div className="py-8 border-y border-white/5 flex items-center justify-center gap-12">
+              <div className="text-center">
+                <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Score</div>
+                <div className="text-5xl font-black text-indigo-400">{score}/{quiz?.length}</div>
+              </div>
+              <div className="text-center">
+                <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Accuracy</div>
+                <div className="text-5xl font-black text-emerald-400">{Math.round((score / quiz!.length) * 100)}%</div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <button 
+                onClick={handleRestart}
+                className="w-full py-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black uppercase tracking-widest text-sm transition-all shadow-xl shadow-indigo-500/20 flex items-center justify-center gap-3"
+              >
+                <RefreshCcw size={18} />
+                Try Another Topic
+              </button>
+              <button className="w-full py-5 bg-white/5 hover:bg-white/10 border border-white/5 text-white rounded-2xl font-black uppercase tracking-widest text-sm transition-all flex items-center justify-center gap-3">
+                Share Results
+              </button>
+            </div>
+          </motion.div>
         ) : (
-          <button
-            onClick={checkAnswer}
-            disabled={!selectedOption}
-            className={`w-full py-5 rounded-[1.5rem] font-black text-xs uppercase tracking-[0.2em] transition-all shadow-xl active:scale-95 ${!selectedOption ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed shadow-none' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}
+          <motion.div 
+            key="quiz"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="max-w-3xl w-full space-y-8"
           >
-            Verify Selection
-          </button>
+            {/* Quiz Header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <button 
+                  onClick={handleRestart}
+                  className="p-2 hover:bg-white/5 rounded-full text-slate-400 hover:text-white transition-colors"
+                >
+                  <ArrowLeft size={24} />
+                </button>
+                <div>
+                  <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Question {currentQuestionIdx + 1} of {quiz?.length}</div>
+                  <h3 className="text-xl font-black tracking-tight">{topic}</h3>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 px-4 py-2 bg-white/5 rounded-2xl border border-white/5">
+                <Timer size={18} className={timeLeft < 10 ? 'text-red-400 animate-pulse' : 'text-indigo-400'} />
+                <span className={`text-lg font-black tabular-nums ${timeLeft < 10 ? 'text-red-400' : 'text-white'}`}>
+                  0:{timeLeft.toString().padStart(2, '0')}
+                </span>
+              </div>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${((currentQuestionIdx + 1) / quiz!.length) * 100}%` }}
+                className="h-full bg-indigo-600"
+              />
+            </div>
+
+            {/* Question Card */}
+            <div className="bg-slate-900 border border-white/5 rounded-[3rem] p-8 md:p-12 space-y-10 shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-1 h-full bg-indigo-600" />
+              <h2 className="text-2xl md:text-3xl font-black tracking-tight leading-tight">
+                {quiz![currentQuestionIdx].question}
+              </h2>
+
+              <div className="grid grid-cols-1 gap-4">
+                {quiz![currentQuestionIdx].options.map((option, idx) => {
+                  const isCorrect = idx === quiz![currentQuestionIdx].correctAnswer;
+                  const isSelected = selectedOption === idx;
+                  const showCorrect = selectedOption !== null && isCorrect;
+                  const showWrong = isSelected && !isCorrect;
+
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handleOptionSelect(idx)}
+                      disabled={selectedOption !== null}
+                      className={`flex items-center justify-between p-6 rounded-3xl border-2 transition-all text-left group ${
+                        showCorrect 
+                          ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400' 
+                          : showWrong 
+                            ? 'bg-red-500/10 border-red-500/50 text-red-400'
+                            : isSelected
+                              ? 'bg-indigo-600/10 border-indigo-500/50 text-indigo-400'
+                              : 'bg-white/5 border-white/5 text-slate-300 hover:bg-white/10 hover:border-white/10'
+                      }`}
+                    >
+                      <span className="text-lg font-bold">{option}</span>
+                      {showCorrect && <CheckCircle2 size={24} />}
+                      {showWrong && <XCircle size={24} />}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {selectedOption !== null && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="pt-8 border-t border-white/5 space-y-4"
+                >
+                  <div className="flex items-center gap-2 text-indigo-400 font-black uppercase tracking-widest text-[10px]">
+                    <Sparkles size={14} />
+                    Neural Explanation
+                  </div>
+                  <p className="text-slate-400 font-medium leading-relaxed">
+                    {quiz![currentQuestionIdx].explanation}
+                  </p>
+                  <button 
+                    onClick={handleNextQuestion}
+                    className="w-full py-4 bg-white text-slate-950 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-indigo-50 transition-all flex items-center justify-center gap-2"
+                  >
+                    {currentQuestionIdx === quiz!.length - 1 ? 'Finish Quiz' : 'Next Question'}
+                    <ChevronRight size={16} />
+                  </button>
+                </motion.div>
+              )}
+            </div>
+          </motion.div>
         )}
-      </div>
+      </AnimatePresence>
     </div>
   );
 };

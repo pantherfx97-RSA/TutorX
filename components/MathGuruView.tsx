@@ -1,287 +1,443 @@
-
 import React, { useState, useRef, useEffect } from 'react';
-import { askMathGuruStream } from '../services/geminiService';
-import { SubscriptionTier } from '../types';
+import { motion, AnimatePresence } from 'motion/react';
+import { 
+  Calculator, 
+  Send, 
+  Sparkles, 
+  Brain, 
+  History, 
+  Trash2,
+  Maximize2,
+  Minimize2,
+  Camera,
+  ChevronLeft,
+  Lightbulb,
+  Zap,
+  Check,
+  Copy,
+  Share2,
+  Bookmark,
+  Loader2,
+  Plus,
+  MessageSquare,
+  Atom
+} from 'lucide-react';
+import Markdown from 'react-markdown';
+import { geminiService } from '../services/geminiService';
+import SkeletonLoader from './SkeletonLoader';
 
 interface MathGuruViewProps {
-  onBack: () => void;
-  tier: SubscriptionTier;
-  onQuestionAsked: () => void;
+  initialTopic?: string | null;
+  onClearTopic?: () => void;
+  onBack?: () => void;
 }
 
-interface MathMessage {
-  role: 'user' | 'model';
-  text: string;
-  image?: string;
-}
-
-const FormattedMathText: React.FC<{ text: string }> = ({ text }) => {
-  const lines = text.split('\n');
-  return (
-    <div className="space-y-4 font-sans">
-      {lines.map((line, i) => {
-        const trimmed = line.trim();
-        if (!trimmed) return <div key={i} className="h-2" />;
-        
-        if (trimmed.startsWith('###')) {
-          const content = trimmed.replace(/###/g, '').trim();
-          return (
-            <h3 key={i} className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-8 mb-4 tracking-tighter flex items-center gap-3 border-b-2 border-indigo-100 dark:border-indigo-900/30 pb-3">
-              <span className="w-1.5 h-6 bg-indigo-600 rounded-full hidden sm:block"></span>
-              {parseMathSpans(content)}
-            </h3>
-          );
-        }
-
-        if (trimmed.startsWith('-') || trimmed.startsWith('*')) {
-          const content = trimmed.substring(1).trim();
-          return (
-            <div key={i} className="flex gap-4 ml-2 group py-1">
-              <span className="text-indigo-600 dark:text-indigo-400 font-black mt-1.5 text-xs">◆</span>
-              <span className="flex-1 text-slate-800 dark:text-slate-100 text-sm sm:text-base font-bold leading-relaxed">
-                {parseMathSpans(content)}
-              </span>
-            </div>
-          );
-        }
-
-        return (
-          <p key={i} className="leading-relaxed text-slate-900 dark:text-slate-50 font-bold text-sm sm:text-base">
-            {parseMathSpans(trimmed)}
-          </p>
-        );
-      })}
-    </div>
-  );
-};
-
-const parseMathSpans = (text: string) => {
-  const boldParts = text.split(/(\*\*.*?\*\*)/g);
-  
-  return boldParts.map((part, i) => {
-    if (part.startsWith('**') && part.endsWith('**')) {
-      return (
-        <strong key={i} className="font-black text-indigo-700 dark:text-indigo-300">
-          {processExponents(part.slice(2, -2))}
-        </strong>
-      );
-    }
-    return <React.Fragment key={i}>{processExponents(part)}</React.Fragment>;
-  });
-};
-
-const processExponents = (text: string) => {
-  const parts = text.split(/(\^[a-zA-Z0-9]+)/g);
-  
-  return parts.map((part, i) => {
-    if (part.startsWith('^')) {
-      return <sup key={i} className="text-xs ml-0.5 text-indigo-600 dark:text-indigo-400 font-black">{part.slice(1)}</sup>;
-    }
-    const withBetterOps = part.replace(/[×÷±≠≈√]/g, (match) => ` ${match} `);
-    return withBetterOps;
-  });
-};
-
-const MathGuruView: React.FC<MathGuruViewProps> = ({ onBack, tier, onQuestionAsked }) => {
-  const [messages, setMessages] = useState<MathMessage[]>([]);
+const MathGuruView: React.FC<MathGuruViewProps> = ({ initialTopic, onClearTopic, onBack }) => {
+  const [messages, setMessages] = useState<{ role: 'user' | 'model'; text: string; id: string }[]>([]);
   const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [streamingText, setStreamingText] = useState('');
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [imageMime, setImageMime] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [autoScroll, setAutoScroll] = useState(true);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+
+  const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const chatEndRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isLoading, streamingText]);
-
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
+    if (autoScroll && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [input]);
+  }, [messages, autoScroll, loading]);
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  useEffect(() => {
+    if (initialTopic) {
+      if (initialTopic === "Analyze my homework image") {
+        handleFileUpload();
+      } else {
+        handleSend(initialTopic);
+      }
+      onClearTopic?.();
+    }
+  }, [initialTopic]);
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      setSelectedImage(reader.result as string);
-      setImageMime(file.type);
-    };
-    reader.readAsDataURL(file);
-  };
+  const handleSend = async (overrideInput?: string) => {
+    const textToSend = overrideInput || input;
+    if (!textToSend.trim() || loading) return;
 
-  const handleSend = async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if ((!input.trim() && !selectedImage) || isLoading || !!streamingText) return;
-
-    const userMsg: MathMessage = { role: 'user', text: input, image: selectedImage || undefined };
+    const messageId = Date.now().toString();
+    const userMsg = { role: 'user' as const, text: textToSend, id: messageId };
     setMessages(prev => [...prev, userMsg]);
-    setIsLoading(true);
     setInput('');
+    setLoading(true);
+    setError(null);
 
-    const imageData = selectedImage ? selectedImage.split(',')[1] : undefined;
-    const currentMime = imageMime;
-    
-    setSelectedImage(null);
-    setImageMime(null);
+    const modelMsgId = (Date.now() + 1).toString();
+    setMessages(prev => [...prev, { role: 'model', text: '', id: modelMsgId }]);
 
     try {
-      let fullResponse = "";
-      const stream = askMathGuruStream(
-        userMsg.text,
-        imageData ? { data: imageData, mimeType: currentMime! } : undefined,
-        tier
-      );
-      
-      onQuestionAsked();
-      setIsLoading(false);
-
-      for await (const chunk of stream) {
-        fullResponse += chunk;
-        setStreamingText(fullResponse);
-      }
-
-      setMessages(prev => [...prev, { role: 'model', text: fullResponse }]);
-      setStreamingText('');
-      
-    } catch (error) {
-      setIsLoading(false);
-      setMessages(prev => [...prev, { role: 'model', text: "❌ Neural link interrupted. Could not process math logic." }]);
+      await geminiService.solveMathProblemStream(textToSend, (chunk) => {
+        setMessages(prev => {
+          const newMessages = [...prev];
+          const lastMsg = newMessages[newMessages.length - 1];
+          if (lastMsg && lastMsg.role === 'model') {
+            lastMsg.text += chunk;
+          }
+          return newMessages;
+        });
+      });
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Neural link interrupted. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
+  const handleFileUpload = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64String = (reader.result as string).split(',')[1];
+        const messageId = Date.now().toString();
+        const userMsg = { role: 'user' as const, text: `[Uploaded Image: ${file.name}] Please solve this math problem step-by-step.`, id: messageId };
+        setMessages(prev => [...prev, userMsg]);
+        setLoading(true);
+        setError(null);
+
+        const modelMsgId = (Date.now() + 1).toString();
+        setMessages(prev => [...prev, { role: 'model', text: '', id: modelMsgId }]);
+
+        try {
+          await geminiService.analyzeImageStream(
+            base64String, 
+            file.type, 
+            "You are the TutorX Math Guru. Analyze this image of a math problem and solve it step-by-step with clear explanations.",
+            (chunk) => {
+              setMessages(prev => {
+                const newMessages = [...prev];
+                const lastMsg = newMessages[newMessages.length - 1];
+                if (lastMsg && lastMsg.role === 'model') {
+                  lastMsg.text += chunk;
+                }
+                return newMessages;
+              });
+            }
+          );
+        } catch (err: any) {
+          console.error(err);
+          setError(err.message || "Neural link interrupted during image analysis.");
+        } finally {
+          setLoading(false);
+          if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+      };
+      reader.readAsDataURL(file);
     }
   };
+
+  const handleCopy = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleSave = (id: string) => {
+    setSavedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const suggestions = [
+    { label: "Explain deeper", prompt: "Can you explain the underlying concept in more detail?" },
+    { label: "Try similar problem", prompt: "Can you give me a similar problem to practice?" },
+    { label: "Check my work", prompt: "I solved it differently. Can I show you my steps?" },
+  ];
 
   return (
-    <div className="flex flex-col h-[calc(100vh-160px)] max-w-2xl mx-auto w-full animate-in fade-in duration-500">
-      <div className="flex items-center justify-between mb-4">
-        <button onClick={onBack} className="flex items-center space-x-2 text-slate-400 hover:text-indigo-600 font-black text-xs uppercase tracking-widest transition-colors">
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M15 19l-7-7 7-7" /></svg>
-          <span>Exit Guru Mode</span>
-        </button>
-        <div className="flex items-center gap-2 px-4 py-1.5 bg-indigo-600 rounded-full shadow-lg">
-          <span className="text-[10px] font-black text-white uppercase tracking-widest">Math Guru Protocol</span>
-          <div className="w-2 h-2 rounded-full bg-white animate-pulse"></div>
-        </div>
-      </div>
-
-      <div className="flex-1 bg-white dark:bg-slate-900 rounded-[2.5rem] p-4 sm:p-8 shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden flex flex-col">
-        <div className="flex-1 overflow-y-auto space-y-6 no-scrollbar pr-2">
-          {messages.length === 0 && (
-            <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-50 px-8">
-              <div className="text-6xl mb-4 animate-float">📐</div>
-              <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tighter">Math Mastery Initialization</h3>
-              <p className="text-xs font-bold text-slate-500 max-w-xs leading-relaxed uppercase tracking-tight">
-                Upload a photo of your homework or type a problem. TutorX will provide step-by-step logic.
-              </p>
+    <div className={`fixed inset-0 z-[100] bg-slate-950 flex flex-col overflow-hidden text-slate-100 font-sans transition-all duration-500 ${isFullscreen ? 'p-0' : ''}`}>
+      {/* Premium Header */}
+      <header className="h-16 border-b border-white/5 bg-slate-950/50 backdrop-blur-xl flex items-center justify-between px-4 md:px-8 shrink-0 z-10">
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={onBack}
+            className="p-2 hover:bg-white/5 rounded-full transition-colors text-slate-400 hover:text-white"
+          >
+            <ChevronLeft size={24} />
+          </button>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+              <Calculator size={20} className="text-white" />
             </div>
-          )}
-
-          {messages.map((msg, i) => (
-            <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[90%] p-6 rounded-3xl text-sm font-bold shadow-sm ${
-                msg.role === 'user' 
-                  ? 'bg-indigo-600 text-white rounded-tr-none' 
-                  : 'bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-tl-none border border-slate-100 dark:border-slate-700'
-              }`}>
-                {msg.image && (
-                  <img src={msg.image} alt="User upload" className="mb-4 rounded-xl border-4 border-white/10 max-w-full h-auto shadow-lg" />
-                )}
-                <div className="whitespace-pre-wrap leading-relaxed">
-                  {msg.role === 'user' ? msg.text : <FormattedMathText text={msg.text} />}
-                </div>
+            <div>
+              <h1 className="text-sm font-bold tracking-tight">Math Guru</h1>
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Neural Solver v2.0</span>
               </div>
-            </div>
-          ))}
-
-          {streamingText && (
-            <div className="flex flex-col items-start gap-2">
-              <div className="max-w-[90%] p-6 rounded-3xl rounded-tl-none bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-100 dark:border-slate-700 text-sm font-bold shadow-sm animate-in fade-in duration-300">
-                <div className="whitespace-pre-wrap leading-relaxed">
-                  <FormattedMathText text={streamingText} />
-                </div>
-              </div>
-              <div className="flex items-center gap-2 ml-4">
-                <span className="flex gap-1">
-                  <span className="w-1 h-1 bg-indigo-500 rounded-full animate-bounce"></span>
-                  <span className="w-1 h-1 bg-indigo-500 rounded-full animate-bounce [animation-delay:0.2s]"></span>
-                  <span className="w-1 h-1 bg-indigo-500 rounded-full animate-bounce [animation-delay:0.4s]"></span>
-                </span>
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">TutorX is typing...</span>
-              </div>
-            </div>
-          )}
-
-          {isLoading && (
-            <div className="flex justify-start items-center gap-3">
-              <div className="bg-slate-100 dark:bg-slate-800 px-6 py-4 rounded-3xl rounded-tl-none flex items-center gap-3 shadow-sm border border-slate-200/50 dark:border-slate-700/50">
-                <div className="relative w-5 h-5">
-                   <div className="absolute inset-0 bg-indigo-500/20 rounded-full animate-ping"></div>
-                   <div className="relative flex gap-1 items-center justify-center h-full">
-                     <div className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-bounce"></div>
-                   </div>
-                </div>
-                <span className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest animate-pulse">Calculating Steps...</span>
-              </div>
-            </div>
-          )}
-          <div ref={chatEndRef} />
-        </div>
-
-        <div className="mt-6 space-y-4">
-          {selectedImage && (
-            <div className="relative inline-block group">
-              <img src={selectedImage} alt="Selected" className="h-24 w-24 object-cover rounded-xl border-2 border-indigo-500 shadow-xl" />
-              <button 
-                onClick={() => setSelectedImage(null)}
-                className="absolute -top-3 -right-3 bg-rose-500 text-white rounded-full p-1.5 shadow-lg hover:scale-110 transition-transform border-2 border-white dark:border-slate-900"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
-          )}
-
-          <div className="relative flex items-end gap-2">
-            <button 
-              type="button" 
-              onClick={() => fileInputRef.current?.click()}
-              className="mb-1 p-4 bg-slate-100 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 rounded-2xl border border-slate-200 dark:border-slate-700 active:scale-95 transition-all shadow-sm flex items-center justify-center shrink-0 hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
-            >
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-            </button>
-            <input type="file" ref={fileInputRef} onChange={handleImageSelect} accept="image/*" className="hidden" />
-            
-            <div className="flex-1 relative">
-              <textarea 
-                ref={textareaRef}
-                value={input} 
-                onChange={(e) => setInput(e.target.value)} 
-                onKeyDown={handleKeyDown}
-                placeholder="Type complex problem here..." 
-                rows={1}
-                className="w-full pl-6 pr-14 py-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-50 text-sm font-bold outline-none focus:border-indigo-500 transition-all resize-none min-h-[56px] overflow-y-auto no-scrollbar shadow-inner" 
-              />
-              <button 
-                onClick={() => handleSend()}
-                disabled={(!input.trim() && !selectedImage) || isLoading || !!streamingText} 
-                className="absolute right-2 bottom-2 p-2 bg-indigo-600 text-white rounded-xl active:scale-95 disabled:opacity-50 transition-all shadow-lg hover:bg-indigo-700"
-              >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
-              </button>
             </div>
           </div>
         </div>
+
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => setMessages([])}
+            className="p-2 hover:bg-white/5 rounded-lg transition-colors text-slate-400 hover:text-red-400"
+            title="Clear Session"
+          >
+            <Trash2 size={20} />
+          </button>
+          <button 
+            onClick={() => setIsFullscreen(!isFullscreen)}
+            className="p-2 hover:bg-white/5 rounded-lg transition-colors text-slate-400"
+          >
+            {isFullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
+          </button>
+        </div>
+      </header>
+
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+        {/* Sidebar - Desktop Only */}
+        <aside className="hidden lg:flex w-80 border-r border-white/5 flex-col p-6 gap-8 bg-slate-950/30 overflow-y-auto custom-scrollbar">
+          <div className="space-y-4">
+            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] px-2">Math Capabilities</h3>
+            <div className="space-y-2">
+              {[
+                { label: 'Algebra', icon: Brain },
+                { label: 'Calculus', icon: Zap },
+                { label: 'Geometry', icon: Atom },
+                { label: 'Statistics', icon: Sparkles },
+              ].map((cap) => (
+                <div key={cap.label} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5 text-slate-400">
+                  <cap.icon size={16} className="text-emerald-400" />
+                  <span className="text-xs font-bold">{cap.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-auto pt-6 border-t border-white/5">
+            <div className="bg-emerald-600/10 border border-emerald-500/20 rounded-2xl p-4">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-emerald-600 rounded-lg">
+                  <Lightbulb size={16} className="text-white" />
+                </div>
+                <span className="text-xs font-bold text-emerald-400">Neural Insight</span>
+              </div>
+              <p className="text-[10px] text-slate-400 leading-relaxed font-medium">
+                I don't just solve; I explain the "why" behind every step.
+              </p>
+            </div>
+          </div>
+        </aside>
+
+        {/* Main Area */}
+        <main className="flex-1 flex flex-col relative bg-slate-950">
+          {/* Messages Container */}
+          <div 
+            ref={scrollRef}
+            className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-12 space-y-8 custom-scrollbar"
+          >
+            {messages.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center max-w-xl mx-auto">
+                <motion.div 
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="w-20 h-20 rounded-3xl bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center mb-8"
+                >
+                  <Calculator size={40} className="text-emerald-400" />
+                </motion.div>
+                <h2 className="text-3xl font-black mb-4 tracking-tight">What shall we solve?</h2>
+                <p className="text-slate-400 font-medium text-lg leading-relaxed">
+                  Enter any mathematical expression or word problem. I'll provide a structured neural breakdown.
+                </p>
+                
+                <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+                  {[
+                    'Solve 3x^2 - 5x + 2 = 0', 
+                    'Integral of sin(x)cos(x)', 
+                    'Find the limit of (sin x)/x as x -> 0', 
+                    'Area of a circle with radius 5'
+                  ].map((q) => (
+                    <button 
+                      key={q}
+                      onClick={() => handleSend(q)}
+                      className="p-4 bg-white/5 hover:bg-white/10 border border-white/5 rounded-2xl text-sm font-bold text-slate-300 transition-all text-left flex items-center gap-3"
+                    >
+                      <MessageSquare size={16} className="text-emerald-400" />
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="max-w-3xl mx-auto w-full space-y-10">
+                {messages.map((msg, idx) => (
+                  <motion.div
+                    key={msg.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div className={`group relative max-w-[90%] md:max-w-[85%] ${
+                      msg.role === 'user' 
+                        ? 'bg-emerald-600 text-white rounded-2xl rounded-tr-none px-5 py-3 shadow-lg shadow-emerald-500/10' 
+                        : 'w-full'
+                    }`}>
+                      {msg.role === 'model' && (
+                        <div className="flex gap-4">
+                          <div className="hidden sm:flex w-10 h-10 rounded-xl bg-slate-900 border border-white/10 items-center justify-center shrink-0">
+                            <Brain size={20} className="text-emerald-400" />
+                          </div>
+                          <div className="flex-1 space-y-4">
+                            <div className="bg-white/5 border border-white/5 rounded-3xl p-6 md:p-8 text-slate-200 leading-relaxed shadow-2xl relative overflow-hidden">
+                              <div className="absolute top-0 left-0 w-1 h-full bg-emerald-600/50" />
+                              <div className="prose prose-invert max-w-none 
+                                prose-p:text-slate-300 prose-p:text-lg prose-p:leading-relaxed
+                                prose-headings:text-white prose-headings:font-black prose-headings:tracking-tight
+                                prose-strong:text-white prose-strong:font-bold
+                                prose-code:text-emerald-400 prose-code:bg-emerald-400/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md
+                                prose-pre:bg-slate-900 prose-pre:border prose-pre:border-white/5
+                              ">
+                                <Markdown>{msg.text}</Markdown>
+                              </div>
+                            </div>
+                            
+                            {/* Response Actions */}
+                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button 
+                                onClick={() => handleCopy(msg.text, msg.id)}
+                                className="p-2 bg-white/5 border border-white/5 rounded-lg text-slate-400 hover:text-white transition-all"
+                                title="Copy"
+                              >
+                                {copiedId === msg.id ? <Check size={16} className="text-emerald-400" /> : <Copy size={16} />}
+                              </button>
+                              <button 
+                                onClick={() => handleSave(msg.id)}
+                                className={`p-2 border rounded-lg transition-all ${
+                                  savedIds.has(msg.id) ? 'bg-amber-500/20 border-amber-500/30 text-amber-400' : 'bg-white/5 border-white/5 text-slate-400 hover:text-white'
+                                }`}
+                                title="Save to Vault"
+                              >
+                                <Bookmark size={16} fill={savedIds.has(msg.id) ? "currentColor" : "none"} />
+                              </button>
+                              <button 
+                                className="p-2 bg-white/5 border border-white/5 rounded-lg text-slate-400 hover:text-white transition-all"
+                                title="Share"
+                              >
+                                <Share2 size={16} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      {msg.role === 'user' && (
+                        <span className="text-sm font-bold">{msg.text}</span>
+                      )}
+                    </div>
+                  </motion.div>
+                ))}
+                
+                {loading && (
+                  <div className="flex gap-4">
+                    <div className="hidden sm:flex w-10 h-10 rounded-xl bg-slate-900 border border-white/10 items-center justify-center shrink-0">
+                      <Brain size={20} className="text-emerald-400" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="bg-white/5 border border-white/5 rounded-3xl p-6 flex items-center gap-4">
+                        <div className="flex gap-1">
+                          <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 1 }} className="w-2 h-2 rounded-full bg-emerald-500" />
+                          <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="w-2 h-2 rounded-full bg-emerald-500" />
+                          <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="w-2 h-2 rounded-full bg-emerald-500" />
+                        </div>
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Neural Solving...</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Floating Input Area */}
+          <div className="p-4 md:p-8 shrink-0">
+            <div className="max-w-3xl mx-auto space-y-4">
+              {/* Quick Suggestions */}
+              {messages.length > 0 && !loading && (
+                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2">
+                  {suggestions.map((s) => (
+                    <button
+                      key={s.label}
+                      onClick={() => handleSend(s.prompt)}
+                      className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/5 rounded-full text-xs font-bold text-slate-400 hover:text-white transition-all whitespace-nowrap flex items-center gap-2"
+                    >
+                      <Plus size={14} />
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Chat Bar */}
+              <div className="relative group">
+                <div className="relative flex items-center bg-slate-900/80 backdrop-blur-2xl border border-white/10 focus-within:border-emerald-500/50 rounded-2xl md:rounded-3xl transition-all shadow-2xl">
+                  <div className="hidden sm:flex pl-6 text-slate-500">
+                    <Sparkles size={20} />
+                  </div>
+                  <textarea
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSend();
+                      }
+                    }}
+                    placeholder="Enter math problem or upload image..."
+                    className="flex-1 bg-transparent py-4 md:py-6 px-4 md:px-6 outline-none font-bold text-sm md:text-base resize-none min-h-[56px] max-h-48 text-white placeholder:text-slate-600"
+                    rows={1}
+                  />
+                  <div className="pr-2 md:pr-4 flex items-center gap-1 md:gap-2">
+                    <button
+                      onClick={handleFileUpload}
+                      className="p-2 md:p-3 text-slate-500 hover:text-emerald-400 transition-all rounded-xl hover:bg-white/5"
+                      title="Upload Image"
+                    >
+                      <Camera size={20} />
+                    </button>
+                    <input 
+                      type="file" 
+                      ref={fileInputRef} 
+                      onChange={handleFileChange} 
+                      className="hidden" 
+                      accept="image/*"
+                    />
+                    <button
+                      onClick={() => handleSend()}
+                      disabled={!input.trim() || loading}
+                      className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center hover:bg-emerald-500 transition-all disabled:opacity-50 shadow-lg shadow-emerald-500/20 active:scale-95"
+                    >
+                      <Send size={18} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              <p className="text-[10px] text-center text-slate-600 font-bold uppercase tracking-widest">
+                TutorX Math Guru v2.0 • Neural Solver Active
+              </p>
+            </div>
+          </div>
+        </main>
       </div>
     </div>
   );

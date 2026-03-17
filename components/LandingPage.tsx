@@ -1,277 +1,272 @@
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { 
+  Sparkles, 
+  Brain, 
+  Zap, 
+  Shield, 
+  ArrowRight, 
+  Play,
+  CheckCircle2,
+  Globe,
+  Cpu,
+  XCircle
+} from 'lucide-react';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { AppScreen } from '../types';
-import Auth from './Auth';
-import { askTutor } from '../services/geminiService';
-import { DEVELOPER_CREDIT } from '../constants';
+import Footer from './Footer';
 
 interface LandingPageProps {
-  currentAuthScreen: AppScreen;
-  onAuth: (email: string, pass: string) => void;
-  onNavigate: (screen: AppScreen) => void;
-  loading: boolean;
-  error?: string;
+  onGetStarted: () => void;
+  onPrivacyClick: () => void;
+  onSupportClick: () => void;
+  onTermsClick: () => void;
 }
 
-const LandingPage: React.FC<LandingPageProps> = ({ 
-  currentAuthScreen, 
-  onAuth, 
-  onNavigate, 
-  loading, 
-  error 
-}) => {
-  const [subject, setSubject] = useState('');
-  const [level, setLevel] = useState<'High School' | 'University'>('High School');
-  const [examType, setExamType] = useState('');
-  const [previewQuestion, setPreviewQuestion] = useState('');
-  
-  const [previewResponse, setPreviewResponse] = useState('');
-  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
-  const [showPortal, setShowPortal] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  
-  const authRef = useRef<HTMLDivElement>(null);
+const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onPrivacyClick, onSupportClick, onTermsClick }) => {
+  const [showDemoModal, setShowDemoModal] = useState(false);
 
-  useEffect(() => {
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-    window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
-  }, []);
-
-  const handleInstall = async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setDeferredPrompt(null);
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+        delayChildren: 0.2
+      }
     }
   };
 
-  const handlePreviewAsk = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!previewQuestion.trim() || !subject.trim() || isPreviewLoading) return;
-    
-    setIsPreviewLoading(true);
-    try {
-      const guestContext = { 
-        topic: `Initial Inquiry: ${subject}`, 
-        lesson: "", 
-        summary: [], 
-        quiz: [], 
-        next_topics: [] 
-      };
-      const complexPrompt = `
-        [Academic Level: ${level}]
-        [Subject: ${subject}]
-        [Exam Focus: ${examType}]
-        Question: ${previewQuestion}
-      `;
-      const response = await askTutor(complexPrompt, guestContext, []);
-      setPreviewResponse(response);
-      setShowPortal(true);
-    } catch (err) {
-      setPreviewResponse("Neural Link Busy. Please initialize your account to get priority access.");
-      setShowPortal(true);
-    } finally {
-      setIsPreviewLoading(false);
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] }
     }
   };
-
-  const handleDirectLaunch = () => {
-    setShowPortal(true);
-    setTimeout(() => {
-      authRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 100);
-  };
-
-  useEffect(() => {
-    if (showPortal && authRef.current) {
-      setTimeout(() => {
-        authRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 500);
-    }
-  }, [showPortal]);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 selection:bg-indigo-500 selection:text-white overflow-x-hidden pb-32">
-      {/* PWA Install Button (Sticky Top) */}
-      {deferredPrompt && (
-        <div className="fixed top-0 left-0 right-0 z-[60] p-3 flex justify-center animate-in slide-in-from-top duration-500">
-          <button 
-            onClick={handleInstall}
-            className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-full font-black text-xs uppercase tracking-widest shadow-2xl shadow-indigo-500/40 hover:scale-105 active:scale-95 transition-all"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-            Install TutorX App
-          </button>
-        </div>
-      )}
+    <div className="bg-slate-50 overflow-hidden selection:bg-indigo-100 selection:text-indigo-900">
+      {/* Grid Background */}
+      <div className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none" 
+           style={{ backgroundImage: 'radial-gradient(#4f46e5 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>
 
       {/* Hero Section */}
-      <section className="relative min-h-screen flex flex-col items-center justify-center px-4 py-12">
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-500/10 blur-[120px] rounded-full"></div>
-          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-500/10 blur-[120px] rounded-full"></div>
+      <section className="relative pt-20 pb-20 md:pt-40 md:pb-56 px-4">
+        <motion.div 
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          className="max-w-7xl mx-auto text-center relative z-10"
+        >
+          <motion.div
+            variants={itemVariants}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white text-indigo-600 text-[10px] md:text-xs font-black uppercase tracking-[0.2em] mb-8 md:mb-10 border border-slate-200 shadow-sm"
+          >
+            <Brain size={14} className="animate-pulse" />
+            Neural Learning Engine v3.1
+          </motion.div>
+          
+          <motion.h1 
+            variants={itemVariants}
+            className="text-5xl md:text-[9rem] font-black tracking-tighter text-slate-900 mb-8 md:mb-10 leading-[0.85] font-display"
+          >
+            Master <br />
+            <span className="text-indigo-600">Anything.</span>
+          </motion.h1>
+          
+          <motion.p 
+            variants={itemVariants}
+            className="text-lg md:text-2xl text-slate-500 font-medium max-w-2xl mx-auto mb-10 md:mb-14 leading-relaxed"
+          >
+            The world's first AI-native learning platform that adapts to your neural patterns in real-time.
+          </motion.p>
+          
+          <motion.div 
+            variants={itemVariants}
+            className="flex flex-col sm:flex-row items-center justify-center gap-6"
+          >
+            <button 
+              onClick={onGetStarted}
+              className="w-full sm:w-auto px-12 py-6 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-black transition-all shadow-2xl shadow-slate-200 flex items-center justify-center gap-3 group relative overflow-hidden"
+            >
+              <span className="relative z-10">Initialize Engine</span>
+              <ArrowRight size={20} className="relative z-10 group-hover:translate-x-1 transition-transform" />
+              <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-violet-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            </button>
+            <button 
+              onClick={() => setShowDemoModal(true)}
+              className="w-full sm:w-auto px-12 py-6 bg-white text-slate-900 rounded-2xl font-black uppercase tracking-widest hover:bg-slate-50 transition-all border border-slate-200 flex items-center justify-center gap-3 shadow-sm"
+            >
+              <Play size={18} fill="currentColor" />
+              Watch Demo
+            </button>
+          </motion.div>
+        </motion.div>
+
+        {/* Floating Decorative Elements */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full pointer-events-none overflow-hidden">
+          <motion.div 
+            animate={{ y: [0, -20, 0], rotate: [0, 5, 0] }}
+            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute top-1/4 -left-20 w-96 h-96 bg-indigo-200 rounded-full opacity-20 blur-[120px]"
+          />
+          <motion.div 
+            animate={{ y: [0, 20, 0], rotate: [0, -5, 0] }}
+            transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute bottom-1/4 -right-20 w-96 h-96 bg-purple-200 rounded-full opacity-20 blur-[120px]"
+          />
         </div>
+      </section>
 
-        <div className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-start relative z-10">
-          <div className="space-y-8 text-center lg:text-left pt-6">
-            <div className="space-y-6">
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-200 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-[10px] font-black uppercase tracking-widest border border-indigo-300 dark:border-indigo-800">
-                FOR HIGH SCHOOL & UNIVERSITY STUDENTS
-              </div>
-              <h1 className="text-5xl md:text-7xl font-black text-slate-900 dark:text-white leading-[1.1] tracking-tighter">
-                Master Any Subject with <span className="text-indigo-600 dark:text-indigo-400">AI Precision.</span>
-              </h1>
-              <p className="text-lg text-slate-500 dark:text-slate-400 font-bold max-w-xl mx-auto lg:mx-0">
-                Ask questions. Get step-by-step explanations. <br className="hidden sm:block" /> Start your study session now.
-              </p>
-              
-              <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-2">
-                <button 
-                  onClick={handleDirectLaunch}
-                  className="w-full sm:w-auto px-8 py-4 bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl flex items-center justify-center gap-3 hover:border-indigo-500 transition-all active:scale-95"
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                  Launch Portal
-                </button>
-              </div>
+      {/* Features Grid */}
+      <section className="py-32 px-4 bg-white relative">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-24 gap-8">
+            <div className="max-w-2xl">
+              <h2 className="text-4xl md:text-6xl font-black tracking-tight text-slate-900 mb-6 font-display">Neural Capabilities</h2>
+              <p className="text-slate-500 font-medium text-xl leading-relaxed">Engineered for maximum cognitive retention and rapid skill acquisition.</p>
             </div>
-
-            <div className="space-y-6">
-              {!previewResponse ? (
-                <div className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-2xl space-y-6 max-w-xl mx-auto lg:mx-0">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></div>
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Live Briefing Protocol</span>
-                  </div>
-
-                  <form onSubmit={handlePreviewAsk} className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Subject</label>
-                        <input 
-                          type="text" 
-                          placeholder="e.g. Mathematics, History" 
-                          value={subject}
-                          onChange={(e) => setSubject(e.target.value)}
-                          className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm font-bold focus:border-indigo-500 outline-none transition-all"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Exam Type</label>
-                        <input 
-                          type="text" 
-                          placeholder="e.g. Matric, SAT, Finals" 
-                          value={examType}
-                          onChange={(e) => setExamType(e.target.value)}
-                          className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm font-bold focus:border-indigo-500 outline-none transition-all"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Academic Level</label>
-                      <div className="flex p-1 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
-                        <button 
-                          type="button" 
-                          onClick={() => setLevel('High School')}
-                          className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${level === 'High School' ? 'bg-indigo-500 text-white shadow-sm' : 'text-slate-400'}`}
-                        >
-                          High School
-                        </button>
-                        <button 
-                          type="button" 
-                          onClick={() => setLevel('University')}
-                          className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${level === 'University' ? 'bg-indigo-500 text-white shadow-sm' : 'text-slate-400'}`}
-                        >
-                          University
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="relative">
-                      <label className="block text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Ask your question...</label>
-                      <textarea 
-                        value={previewQuestion}
-                        onChange={(e) => setPreviewQuestion(e.target.value)}
-                        placeholder="What do you want to learn right now?" 
-                        rows={2}
-                        className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm font-bold focus:border-indigo-500 outline-none transition-all resize-none"
-                        required
-                      />
-                    </div>
-
-                    <button 
-                      type="submit" 
-                      disabled={isPreviewLoading || !previewQuestion.trim() || !subject.trim()}
-                      className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                    >
-                      {isPreviewLoading ? (
-                        <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                      ) : (
-                        <>
-                          Initialize Protocol
-                          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                        </>
-                      )}
-                    </button>
-                  </form>
-                </div>
-              ) : (
-                <div className="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border-2 border-indigo-100 dark:border-indigo-800 animate-in fade-in slide-in-from-bottom-4 max-w-xl mx-auto lg:mx-0 shadow-2xl relative">
-                  <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-3">TutorX Neural Response</p>
-                  <p className="text-sm font-bold text-slate-800 dark:text-slate-200 leading-relaxed italic">"{previewResponse}"</p>
-                  <div className="mt-6 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0">
-                      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M5 13l4 4L19 7" /></svg>
-                    </div>
-                    <p className="text-xs font-black text-slate-500 uppercase tracking-widest">Analysis complete. Register below to save this lesson.</p>
-                  </div>
-                </div>
-              )}
+            <div className="hidden md:block">
+              <div className="w-24 h-1 bg-indigo-600 rounded-full"></div>
             </div>
           </div>
 
-          <div className="w-full max-w-md mx-auto" ref={authRef}>
-            {(showPortal || previewResponse) ? (
-              <div className="animate-success-pop duration-700">
-                <Auth 
-                  type={currentAuthScreen} 
-                  onAuth={onAuth} 
-                  onNavigate={onNavigate} 
-                  loading={loading} 
-                  error={error} 
-                />
-              </div>
-            ) : (
-              <div className="hidden lg:flex flex-col items-center justify-center space-y-6 opacity-20 grayscale pointer-events-none transition-opacity duration-1000 mt-20">
-                 <div className="w-64 h-80 bg-slate-200 dark:bg-slate-800 rounded-[3rem] border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center">
-                    <div className="text-center space-y-2">
-                       <svg className="h-10 w-10 mx-auto text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                       <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Secure Portal</p>
-                    </div>
-                 </div>
-                 <p className="text-xs font-bold text-slate-400">Initialize a briefing to unlock</p>
-              </div>
-            )}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+            {[
+              {
+                icon: <Brain size={32} />,
+                title: "Adaptive Learning",
+                desc: "Our neural engine adjusts difficulty in real-time based on your cognitive performance metrics."
+              },
+              {
+                icon: <Cpu size={32} />,
+                title: "Gemini 3.1 Pro",
+                desc: "Powered by the world's most advanced reasoning model for deep conceptual clarity."
+              },
+              {
+                icon: <Zap size={32} />,
+                title: "Instant Validation",
+                desc: "Get immediate feedback on assessments with detailed neural insights and corrections."
+              }
+            ].map((feature, idx) => (
+              <motion.div 
+                key={idx}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: idx * 0.1 }}
+                className="p-8 md:p-12 rounded-3xl md:rounded-[3.5rem] bg-slate-50 border border-slate-100 hover:border-indigo-200 hover:bg-white transition-all group relative overflow-hidden"
+              >
+                <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl bg-white text-indigo-600 flex items-center justify-center mb-6 md:mb-10 shadow-sm group-hover:bg-indigo-600 group-hover:text-white transition-all duration-500">
+                  {feature.icon}
+                </div>
+                <h3 className="text-xl md:text-2xl font-black text-slate-900 mb-3 md:mb-4 font-display">{feature.title}</h3>
+                <p className="text-slate-500 font-medium leading-relaxed text-sm md:text-base">{feature.desc}</p>
+                <div className="absolute bottom-0 left-0 w-full h-1 bg-indigo-600 scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-500"></div>
+              </motion.div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Trust Footer */}
-      <footer className="py-20 px-4 text-center space-y-8">
-        <div className="max-w-4xl mx-auto flex flex-col items-center gap-6">
-           <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.4em] leading-loose">
-             Secure Infrastructure • Privacy Guaranteed • Built in South Africa
-           </p>
-           <p className="text-xs text-slate-400 font-medium">{DEVELOPER_CREDIT} • © 2025 TutorX</p>
+      {/* Social Proof / Stats */}
+      <section className="py-20 md:py-32 px-4">
+        <div className="max-w-7xl mx-auto bg-slate-900 rounded-3xl md:rounded-[4rem] p-8 md:p-28 text-white relative overflow-hidden shadow-2xl">
+          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-12 md:gap-24 items-center">
+            <div>
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 text-indigo-400 text-[10px] font-black uppercase tracking-[0.3em] mb-6 md:mb-10 border border-white/10">
+                <Globe size={14} />
+                Global Network
+              </div>
+              <h2 className="text-4xl md:text-7xl font-black tracking-tight mb-6 md:mb-10 leading-[0.9] font-display">
+                Trusted by <br />
+                <span className="text-indigo-400">50,000+</span> <br />
+                Explorers.
+              </h2>
+              <div className="space-y-6 md:space-y-8">
+                {[
+                  "98% Improvement in retention",
+                  "100+ Subjects mastered",
+                  "Top-tier university adoption"
+                ].map((stat, idx) => (
+                  <div key={idx} className="flex items-center gap-4 md:gap-5">
+                    <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-500/30">
+                      <CheckCircle2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                    </div>
+                    <span className="text-lg md:text-xl font-bold text-slate-300">{stat}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="relative">
+              <motion.div 
+                whileHover={{ scale: 1.02, rotate: -1 }}
+                className="aspect-square bg-slate-800/50 backdrop-blur-xl rounded-[4rem] p-12 flex flex-col justify-center border border-white/10 shadow-2xl relative z-10"
+              >
+                <div className="flex gap-1 text-indigo-400 mb-10">
+                  {[...Array(5)].map((_, i) => <Sparkles key={i} size={28} fill="currentColor" />)}
+                </div>
+                <p className="text-2xl md:text-3xl font-medium italic text-slate-200 mb-12 leading-relaxed">
+                  "TutorX completely changed how I study. The AI explanations are clearer than my textbooks."
+                </p>
+                <div className="flex items-center gap-5">
+                  <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg"></div>
+                  <div>
+                    <p className="font-black uppercase tracking-widest text-sm">Sarah Chen</p>
+                    <p className="text-slate-500 text-xs font-bold">Medical Student, Stanford</p>
+                  </div>
+                </div>
+              </motion.div>
+              {/* Decorative Glow */}
+              <div className="absolute -inset-4 bg-indigo-600/20 blur-[100px] rounded-full"></div>
+            </div>
+          </div>
+          <div className="absolute -right-40 -top-40 w-[30rem] h-[30rem] bg-indigo-600 rounded-full opacity-10 blur-[150px]"></div>
         </div>
-      </footer>
+      </section>
+
+      {/* Footer */}
+      <Footer 
+        onPrivacyClick={onPrivacyClick}
+        onTermsClick={onTermsClick}
+        onContactClick={() => {}} // Add contact logic if needed
+      />
+
+      {/* Demo Video Modal */}
+      <AnimatePresence>
+        {showDemoModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-10">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowDemoModal(false)}
+              className="absolute inset-0 bg-slate-950/90 backdrop-blur-xl"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-5xl aspect-video bg-black rounded-[2rem] md:rounded-[3rem] overflow-hidden shadow-2xl border border-white/10"
+            >
+              <button 
+                onClick={() => setShowDemoModal(false)}
+                className="absolute top-6 right-6 z-50 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-md transition-all"
+              >
+                <XCircle size={24} />
+              </button>
+              <iframe
+                src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1&mute=0"
+                title="TutorX Platform Demo"
+                className="w-full h-full border-0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

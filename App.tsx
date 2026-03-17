@@ -1,177 +1,311 @@
-
 import React, { useState, useEffect } from 'react';
-import { AppScreen, UserProfile, DifficultyLevel, LessonContent, SubscriptionTier, QuizScoreRecord, UserDocument, TutorMode } from './types';
-import { mockAuth, mockFirestore } from './services/firebaseService';
-import { generateLesson } from './services/geminiService';
-import Layout from './components/Layout';
+import { onAuthStateChanged, User, getAuth } from 'firebase/auth';
+import { firebaseService } from './services/firebaseService';
+import { UserProfile } from './types';
+
+// Components
 import Auth from './components/Auth';
 import Dashboard from './components/Dashboard';
-import Profile from './components/Profile';
 import LessonView from './components/LessonView';
-import UpgradeModal from './components/UpgradeModal';
+import QuizView from './components/QuizView';
+import Profile from './components/Profile';
 import LandingPage from './components/LandingPage';
-import PlansView from './components/PlansView';
+import Layout from './components/Layout';
+import UpgradeModal from './components/UpgradeModal';
 import MathGuruView from './components/MathGuruView';
-import { DEVELOPER_CREDIT } from './constants';
+import AITutorView from './components/AITutorView';
+import PathwayView from './components/PathwayView';
+import PlansView from './components/PlansView';
+import SplashScreen from './components/SplashScreen';
+import ProgressView from './components/ProgressView';
+import PrivacyPolicy from './components/PrivacyPolicy';
+import SupportView from './components/SupportView';
+import PermissionsView from './components/PermissionsView';
+import TermsOfService from './components/TermsOfService';
+import MasterclassesView from './components/MasterclassesView';
+import SavedView from './components/SavedView';
+import SettingsView from './components/SettingsView';
+import AboutView from './components/AboutView';
+import ContactView from './components/ContactView';
+import { Sparkles, Brain } from 'lucide-react';
 
 const App: React.FC = () => {
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
   const [showSplash, setShowSplash] = useState(true);
-  const [splashProgress, setSplashProgress] = useState(0);
-  const [currentScreen, setCurrentScreen] = useState<AppScreen>(AppScreen.LANDING);
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [authLoading, setAuthLoading] = useState(false);
-  const [error, setError] = useState<string | undefined>();
-  const [activeLesson, setActiveLesson] = useState<LessonContent | null>(null);
-  const [activeDifficulty, setActiveDifficulty] = useState<DifficultyLevel>(DifficultyLevel.BEGINNER);
-  const [activeMode, setActiveMode] = useState<TutorMode>('auto');
-  
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    const stored = localStorage.getItem('tutorx_theme');
-    if (stored) return stored === 'dark';
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const [activeView, setActiveView] = useState('Landing');
+  const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+  const [isQuizMode, setIsQuizMode] = useState(false);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [hasSeenPermissions, setHasSeenPermissions] = useState(() => {
+    return localStorage.getItem('tutorx_permissions_seen') === 'true';
   });
-
-  const [showUpgrade, setShowUpgrade] = useState(false);
-  const [targetTier, setTargetTier] = useState<SubscriptionTier>(SubscriptionTier.PREMIUM);
-
-  const toggleDarkMode = () => setIsDarkMode(prev => !prev);
+  const [pendingView, setPendingView] = useState<string | null>(null);
 
   useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    const progressTimer = setInterval(() => {
-      setSplashProgress(prev => prev >= 100 ? 100 : prev + 1.25);
-    }, 30);
-    const timer = setTimeout(() => {
-      setShowSplash(false);
-      document.body.style.overflow = 'auto';
-    }, 3200);
-    return () => { clearTimeout(timer); clearInterval(progressTimer); document.body.style.overflow = 'auto'; };
-  }, []);
-
-  useEffect(() => {
-    const stored = mockAuth.getStoredUser();
-    if (stored) {
-      setUser(checkDailyReset(stored));
-      setCurrentScreen(AppScreen.DASHBOARD);
+    // Auto-adjust display settings based on device
+    const root = document.documentElement;
+    const width = window.innerWidth;
+    
+    if (width < 640) { // Mobile
+      root.style.setProperty('--neural-density', '1.1rem');
+    } else if (width < 1024) { // Tablet
+      root.style.setProperty('--neural-density', '1rem');
+    } else { // Desktop
+      root.style.setProperty('--neural-density', '0.9rem');
     }
-  }, []);
 
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', isDarkMode);
-    localStorage.setItem('tutorx_theme', isDarkMode ? 'dark' : 'light');
-  }, [isDarkMode]);
-
-  const checkDailyReset = (profile: UserProfile): UserProfile => {
-    const now = Date.now();
-    const isNewDay = !profile.lastQuestionDate || new Date(profile.lastQuestionDate).toDateString() !== new Date(now).toDateString();
-    return isNewDay ? { ...profile, questionsAskedToday: 0 } : profile;
-  };
-
-  const handleAuth = async (email: string, pass: string) => {
-    setAuthLoading(true); setError(undefined);
-    try {
-      let loggedUser;
-      if (currentScreen === AppScreen.REGISTER || currentScreen === AppScreen.LANDING) {
-        loggedUser = await mockAuth.register(email, pass);
+    const handleResize = () => {
+      const newWidth = window.innerWidth;
+      if (newWidth < 640) {
+        root.style.setProperty('--neural-density', '1.1rem');
       } else {
-        loggedUser = await mockAuth.login(email, pass);
+        root.style.setProperty('--neural-density', '1rem');
       }
-      if (loggedUser) { setUser(checkDailyReset(loggedUser)); setCurrentScreen(AppScreen.DASHBOARD); }
-    } catch (err) { setError('Authentication failed.'); } finally { setAuthLoading(false); }
-  };
+    };
 
-  const handleLogout = () => { mockAuth.logout(); setUser(null); setCurrentScreen(AppScreen.LANDING); setActiveLesson(null); };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
-  const startLearning = async (topic: string, level: DifficultyLevel, academicLevel: string = "High School", examType: string = "Standard", mode: TutorMode = 'auto') => {
-    setLoading(true);
-    setActiveDifficulty(level);
-    setActiveMode(mode);
-    try {
-      const fullPrompt = `Subject: ${topic}\nLevel: ${academicLevel}\nExam Type: ${examType}\nLearning Mode: ${mode}`;
-      const content = await generateLesson(fullPrompt, level, user?.tier || SubscriptionTier.FREE);
-      setActiveLesson(content);
-      setCurrentScreen(AppScreen.LEARNING);
-    } catch (err: any) {
-      alert(`AI Engine Notice: ${err.message}`);
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    // Initial theme sync
+    const savedTheme = localStorage.getItem('tutorx-theme') || 'Dark';
+    const applyTheme = (t: string) => {
+      const root = document.documentElement;
+      if (t === 'Light') {
+        root.classList.add('light');
+      } else if (t === 'Dark') {
+        root.classList.remove('light');
+      } else if (t === 'Auto') {
+        const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (isDark) {
+          root.classList.remove('light');
+        } else {
+          root.classList.add('light');
+        }
+      }
+    };
+    applyTheme(savedTheme);
+
+    const auth = getAuth();
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      try {
+        setUser(firebaseUser);
+        if (firebaseUser) {
+          const userProfile = await firebaseService.getUserProfile(firebaseUser.uid);
+          setProfile(userProfile);
+          setActiveView('Dashboard');
+        } else {
+          setProfile(null);
+          setActiveView('Landing');
+        }
+      } catch (err) {
+        console.error("Auth state change error:", err);
+        // Fallback to landing if profile fetch fails
+        setActiveView('Landing');
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleTopicSelect = (topic: string) => {
+    const lowerTopic = topic.toLowerCase();
+    
+    let targetView = 'AITutor';
+    if (lowerTopic.includes('solve') || lowerTopic.includes('equation') || lowerTopic.includes('math')) {
+      targetView = 'MathGuru';
+    } else if (lowerTopic.includes('view progress') || lowerTopic.includes('stats')) {
+      targetView = 'Progress';
+    } else if (lowerTopic.includes('quiz')) {
+      const extractedTopic = topic.replace(/quiz me on /i, '').replace(/quiz /i, '');
+      setSelectedTopic(extractedTopic || 'General Knowledge');
+      setIsQuizMode(true);
+      setActiveView('Dashboard');
+      return;
+    } else if (lowerTopic.includes('plan') || lowerTopic.includes('pathway')) {
+      targetView = 'Pathway';
+    } else {
+      setSelectedTopic(topic);
+    }
+
+    // Check permissions for specific views
+    if (!hasSeenPermissions && (targetView === 'MathGuru' || targetView === 'AITutor')) {
+      setPendingView(targetView);
+      setActiveView('Permissions');
+    } else {
+      setActiveView(targetView);
     }
   };
 
-  const recordActivity = async (score: number, isMasteryOnly: boolean = false) => {
-    if (!user || !activeLesson) return;
-    const now = Date.now();
-    const isNewDay = !user.lastActiveDate || new Date(user.lastActiveDate).toDateString() !== new Date(now).toDateString();
-    const updatedUser: UserProfile = {
-      ...user,
-      learningProgress: Math.min(100, user.learningProgress + (isMasteryOnly ? 2 : 5)),
-      completedTopics: [...new Set([...user.completedTopics, activeLesson.topic])],
-      quizScores: [...user.quizScores, { topic: activeLesson.topic, score, date: now, difficulty: activeDifficulty }],
-      streak: isNewDay ? (user.streak || 0) + 1 : (user.streak || 1),
-      lastActiveDate: now
-    };
-    setUser(updatedUser);
-    localStorage.setItem('tutorx_user', JSON.stringify(updatedUser));
+  const handleQuizComplete = async (score: number) => {
+    if (user && selectedTopic) {
+      await firebaseService.updateProgress(user.uid, selectedTopic);
+      const updatedProfile = await firebaseService.getUserProfile(user.uid);
+      setProfile(updatedProfile);
+    }
+    setIsQuizMode(false);
+    setSelectedTopic(null);
+    setActiveView('Dashboard');
   };
 
-  const handleQuestionAsked = () => {
-    if (!user) return;
-    const updatedUser = { ...user, questionsAskedToday: user.questionsAskedToday + 1, lastQuestionDate: Date.now() };
-    setUser(updatedUser); localStorage.setItem('tutorx_user', JSON.stringify(updatedUser));
-  };
+  if (showSplash) {
+    return <SplashScreen onFinish={() => setShowSplash(false)} />;
+  }
 
-  const handleDocumentUpload = (doc: UserDocument) => {
-    if (!user) return;
-    const updatedUser = { ...user, uploadedDocuments: [...(user.uploadedDocuments || []), doc] };
-    setUser(updatedUser); localStorage.setItem('tutorx_user', JSON.stringify(updatedUser));
-  };
-
-  const renderContent = () => {
-    if (!user) return <LandingPage currentAuthScreen={currentScreen === AppScreen.LANDING ? AppScreen.REGISTER : currentScreen} onAuth={handleAuth} onNavigate={setCurrentScreen} loading={authLoading} error={error} />;
+  if (loading) {
     return (
-      <Layout userEmail={user.email} onLogout={handleLogout} onNavigate={setCurrentScreen} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} activeScreen={currentScreen}>
-        {currentScreen === AppScreen.DASHBOARD && <Dashboard user={user} onStartLearning={startLearning} onTriggerUpgrade={(tier) => { setTargetTier(tier); setShowUpgrade(true); }} loading={loading} />}
-        {currentScreen === AppScreen.LEARNING && activeLesson && (
-          <LessonView 
-            content={activeLesson} onComplete={recordActivity} onMarkMastery={(topic) => recordActivity(100, true)} 
-            onNavigate={(topic) => startLearning(topic, DifficultyLevel.BEGINNER)} 
-            onTriggerUpgrade={(tier) => { setTargetTier(tier); setShowUpgrade(true); }} 
-            onBack={() => setCurrentScreen(AppScreen.DASHBOARD)} tier={user.tier} 
-            questionsAskedToday={user.questionsAskedToday} onQuestionAsked={handleQuestionAsked}
+      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+        <div className="flex flex-col items-center">
+          <div className="w-16 h-16 rounded-2xl bg-indigo-600 text-white flex items-center justify-center animate-pulse shadow-xl shadow-indigo-500/20">
+            <Brain size={32} />
+          </div>
+          <p className="mt-4 text-slate-500 font-black uppercase tracking-widest text-xs">Syncing Neural Data</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Auth View
+  if (activeView === 'Auth') {
+    return <Auth onAuthSuccess={() => setActiveView('Dashboard')} />;
+  }
+
+  // Landing View
+  if (activeView === 'Landing' && !user) {
+    return <LandingPage 
+      onGetStarted={() => setActiveView('Auth')} 
+      onPrivacyClick={() => setActiveView('Privacy')} 
+      onSupportClick={() => setActiveView('Support')}
+      onTermsClick={() => setActiveView('Terms')}
+    />;
+  }
+
+  if (activeView === 'Privacy' && !user) {
+    return <PrivacyPolicy onBack={() => setActiveView('Landing')} />;
+  }
+
+  if (activeView === 'Support' && !user) {
+    return <SupportView onBack={() => setActiveView('Landing')} />;
+  }
+
+  if (activeView === 'Terms' && !user) {
+    return <TermsOfService onBack={() => setActiveView('Landing')} />;
+  }
+
+  // Authenticated Views
+  if (user) {
+    if (!profile) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-slate-950">
+          <div className="flex flex-col items-center">
+            <div className="w-16 h-16 rounded-2xl bg-indigo-600 text-white flex items-center justify-center animate-pulse shadow-xl shadow-indigo-500/20">
+              <Sparkles size={32} />
+            </div>
+            <p className="mt-4 text-slate-500 font-black uppercase tracking-widest text-xs">Syncing Neural Profile</p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <Layout 
+        profile={profile} 
+        activeView={activeView} 
+        onViewChange={setActiveView}
+        onUpgradeClick={() => setIsUpgradeModalOpen(true)}
+      >
+        {activeView === 'Dashboard' && (
+          <Dashboard 
+            profile={profile} 
+            onSelectTopic={handleTopicSelect} 
+            onViewChange={setActiveView}
           />
         )}
-        {currentScreen === AppScreen.PROFILE && <Profile user={user} onUpload={handleDocumentUpload} onTriggerUpgrade={(tier) => { setTargetTier(tier); setShowUpgrade(true); }} onLogout={handleLogout} onNavigate={setCurrentScreen} />}
-        {currentScreen === AppScreen.PLANS && <PlansView currentTier={user.tier} onTriggerUpgrade={(tier) => { setTargetTier(tier); setShowUpgrade(true); }} />}
-        {currentScreen === AppScreen.MATH_GURU && <MathGuruView onBack={() => setCurrentScreen(AppScreen.PROFILE)} tier={user.tier} onQuestionAsked={handleQuestionAsked} />}
+        {activeView === 'Progress' && (
+          <ProgressView profile={profile} />
+        )}
+        {activeView === 'Lesson' && selectedTopic && (
+          <LessonView 
+            topic={selectedTopic} 
+            userId={user.uid}
+            profile={profile}
+            onUpdateProfile={setProfile}
+            onBack={() => setActiveView('Dashboard')} 
+            onComplete={() => setIsQuizMode(true)}
+          />
+        )}
+        {isQuizMode && selectedTopic && (
+          <QuizView 
+            topic={selectedTopic} 
+            onComplete={handleQuizComplete} 
+            onBack={() => setIsQuizMode(false)}
+          />
+        )}
+        {activeView === 'Pathway' && <PathwayView />}
+        {activeView === 'Masterclasses' && profile && (
+          <MasterclassesView profile={profile} onUpdateProfile={setProfile} />
+        )}
+        {activeView === 'MathGuru' && <MathGuruView initialTopic={selectedTopic} onClearTopic={() => setSelectedTopic(null)} />}
+        {activeView === 'AITutor' && (
+          <AITutorView 
+            initialTopic={selectedTopic} 
+            onClearTopic={() => setSelectedTopic(null)} 
+            onBack={() => setActiveView('Dashboard')}
+          />
+        )}
+        {activeView === 'Plans' && <PlansView />}
+        {activeView === 'Saved' && <SavedView />}
+        {activeView === 'Settings' && <SettingsView />}
+        {activeView === 'About' && <AboutView onBack={() => setActiveView('Dashboard')} />}
+        {activeView === 'Contact' && <ContactView onBack={() => setActiveView('Dashboard')} />}
+        {activeView === 'Profile' && (
+          <Profile 
+            profile={profile} 
+            onPrivacyClick={() => setActiveView('Privacy')} 
+            onSupportClick={() => setActiveView('Support')}
+            onTermsClick={() => setActiveView('Terms')}
+            onAboutClick={() => setActiveView('About')}
+            onContactClick={() => setActiveView('Contact')}
+          />
+        )}
+        {activeView === 'Privacy' && <PrivacyPolicy onBack={() => setActiveView(user ? 'Profile' : 'Landing')} />}
+        {activeView === 'Support' && (
+          <SupportView 
+            onBack={() => setActiveView(user ? 'Profile' : 'Landing')} 
+            userEmail={user?.email || ''}
+            userName={profile?.fullName || ''}
+          />
+        )}
+        {activeView === 'Terms' && <TermsOfService onBack={() => setActiveView(user ? 'Profile' : 'Landing')} />}
+        {activeView === 'Permissions' && (
+          <PermissionsView 
+            onComplete={() => {
+              setHasSeenPermissions(true);
+              localStorage.setItem('tutorx_permissions_seen', 'true');
+              if (pendingView) {
+                setActiveView(pendingView);
+                setPendingView(null);
+              } else {
+                setActiveView('Dashboard');
+              }
+            }} 
+          />
+        )}
+
+        <UpgradeModal 
+          isOpen={isUpgradeModalOpen} 
+          onClose={() => setIsUpgradeModalOpen(false)} 
+        />
       </Layout>
     );
-  };
+  }
 
-  return (
-    <div className="antialiased">
-      {showSplash && (
-        <div className="fixed inset-0 z-[1000] bg-slate-950 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-700">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-900/20 via-slate-950 to-slate-950 opacity-80"></div>
-          <div className="relative group mb-12">
-            <div className="absolute -inset-8 bg-indigo-500/20 rounded-full blur-[60px] animate-pulse"></div>
-            <div className="w-28 h-28 sm:w-36 sm:h-36 bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-[0_0_80px_rgba(99,102,241,0.4)] flex items-center justify-center border border-indigo-500/30 transform transition-transform animate-float relative z-10">
-              <svg viewBox="0 0 64 64" className="w-20 h-20 sm:w-24 sm:h-24"><path d="M18 18L46 46" stroke="#6366f1" strokeWidth="8" strokeLinecap="round" /><path d="M46 18L18 46" stroke="#6366f1" strokeWidth="8" strokeLinecap="round" strokeOpacity="0.25" /><circle cx="32" cy="32" r="7" fill="#6366f1" className="animate-pulse" /></svg>
-            </div>
-          </div>
-          <div className="relative z-10 space-y-4 animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-300">
-            <h1 className="text-4xl sm:text-6xl font-black text-white tracking-tighter">Tutor<span className="text-indigo-500">X</span></h1>
-            <p className="text-[11px] font-black uppercase tracking-[0.5em] text-indigo-400/80">Neural Learning Engine</p>
-            <div className="w-48 sm:w-64 h-1.5 bg-slate-800 rounded-full mx-auto overflow-hidden mt-8 border border-slate-700/50"><div className="h-full bg-gradient-to-r from-indigo-600 to-purple-500 transition-all duration-300 ease-out shadow-[0_0_10px_rgba(99,102,241,0.5)]" style={{ width: `${splashProgress}%` }}></div></div>
-            <div className="flex items-center justify-center gap-2 pt-2"><div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping"></div><span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Synchronizing... {Math.round(splashProgress)}%</span></div>
-          </div>
-          <div className="absolute bottom-16 space-y-2 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-1000 text-center"><p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">{DEVELOPER_CREDIT}</p><div className="h-[1px] w-8 bg-slate-800 mx-auto"></div></div>
-        </div>
-      )}
-      {renderContent()}
-      {showUpgrade && <UpgradeModal targetTier={targetTier} onClose={() => setShowUpgrade(false)} onUpgrade={async (tier) => { const upgraded = await mockAuth.upgradeTier(tier); setUser(upgraded); setShowUpgrade(false); }} />}
-    </div>
-  );
+  return <Auth onAuthSuccess={() => setActiveView('Dashboard')} />;
 };
 
 export default App;

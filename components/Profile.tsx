@@ -1,294 +1,466 @@
-
-import React, { useMemo, useState } from 'react';
-import { UserProfile, SubscriptionTier, UserDocument, AppScreen } from '../types';
-import { DEVELOPER_CREDIT } from '../constants';
+import React, { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
+import { 
+  User, 
+  Settings, 
+  CreditCard, 
+  LogOut, 
+  Shield, 
+  Bell,
+  Mail,
+  Camera,
+  HelpCircle,
+  Scale,
+  Zap
+} from 'lucide-react';
+import { UserProfile } from '../types';
+import { firebaseService } from '../services/firebaseService';
 
 interface ProfileProps {
-  user: UserProfile;
-  onUpload?: (doc: UserDocument) => void;
-  onTriggerUpgrade?: (tier: SubscriptionTier) => void;
-  onLogout?: () => void;
-  onNavigate?: (screen: AppScreen) => void;
+  profile: UserProfile;
+  onPrivacyClick: () => void;
+  onSupportClick: () => void;
+  onTermsClick: () => void;
+  onAboutClick: () => void;
+  onContactClick: () => void;
 }
 
-type SettingsModal = 'help' | 'terms' | 'privacy' | 'bug' | null;
+const Profile: React.FC<ProfileProps> = ({ 
+  profile, 
+  onPrivacyClick, 
+  onSupportClick, 
+  onTermsClick,
+  onAboutClick,
+  onContactClick
+}) => {
+  const [activeTab, setActiveTab] = useState('General');
+  const [density, setDensity] = useState(2);
+  const [theme, setTheme] = useState(() => localStorage.getItem('tutorx-theme') || 'Dark');
+  const [notifications, setNotifications] = useState({
+    email: true,
+    push: true,
+    weekly: false
+  });
+  const [twoFactor, setTwoFactor] = useState(false);
 
-const Profile: React.FC<ProfileProps> = ({ user, onUpload, onTriggerUpgrade, onLogout, onNavigate }) => {
-  const [activeModal, setActiveModal] = useState<SettingsModal>(null);
-  const [bugDescription, setBugDescription] = useState('');
-  const [bugSubmitted, setBugSubmitted] = useState(false);
-  const [currentLanguage, setCurrentLanguage] = useState('English (default)');
-  const [showLangUpdate, setShowLangUpdate] = useState(false);
-  
-  const stats = useMemo(() => {
-    const scores = user.quizScores || [];
-    const avgScore = scores.length > 0 ? Math.round(scores.reduce((acc, s) => acc + s.score, 0) / scores.length) : 0;
-    return { avgScore };
-  }, [user.quizScores]);
-
-  const handleBugSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!bugDescription.trim()) return;
-    setBugSubmitted(true);
-    setTimeout(() => {
-      setBugSubmitted(false);
-      setBugDescription('');
-      setActiveModal(null);
-    }, 2500);
+  const updateDensity = (val: number) => {
+    setDensity(val);
+    const root = document.documentElement;
+    const densityMap: { [key: number]: string } = {
+      1: '1.25rem',
+      2: '1rem',
+      3: '0.75rem'
+    };
+    root.style.setProperty('--neural-density', densityMap[val]);
   };
 
-  const handleLangChange = (lang: string) => {
-    setCurrentLanguage(lang);
-    setShowLangUpdate(true);
-    setTimeout(() => setShowLangUpdate(false), 2000);
-  };
+  useEffect(() => {
+    const applyTheme = (t: string) => {
+      const root = document.documentElement;
+      if (t === 'Light') {
+        root.classList.add('light');
+      } else if (t === 'Dark') {
+        root.classList.remove('light');
+      } else if (t === 'Auto') {
+        const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (isDark) {
+          root.classList.remove('light');
+        } else {
+          root.classList.add('light');
+        }
+      }
+      localStorage.setItem('tutorx-theme', t);
+    };
 
-  const ModalContainer = ({ title, subtitle, children, onClose }: { title: string, subtitle: string, children?: React.ReactNode, onClose: () => void }) => (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh]">
-        <div className="p-8 border-b border-slate-50 dark:border-slate-800 flex justify-between items-start">
-          <div>
-            <h3 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">{title}</h3>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">{subtitle}</p>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M6 18L18 6M6 6l12 12" /></svg>
-          </button>
-        </div>
-        <div className="p-8 overflow-y-auto no-scrollbar flex-1">
-          {children}
-        </div>
-      </div>
-    </div>
-  );
+    applyTheme(theme);
+
+    // Listen for system theme changes if set to Auto
+    if (theme === 'Auto') {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const handleChange = () => applyTheme('Auto');
+      mediaQuery.addEventListener('change', handleChange);
+      return () => mediaQuery.removeEventListener('change', handleChange);
+    }
+  }, [theme]);
+
+  const tabs = ['General', 'Security', 'Billing', 'Notifications', 'Display'];
 
   return (
-    <div className="space-y-6 sm:space-y-10 animate-in slide-in-from-right-4 duration-500 max-w-2xl mx-auto pb-24">
-      
-      {/* Identity Profile Header */}
-      <section className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden relative transition-all group">
-        <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-r from-indigo-500 via-indigo-600 to-purple-600"></div>
-        <div className="relative mt-12 px-8 pb-8 flex flex-col items-center">
-          <div className="w-28 h-28 bg-white dark:bg-slate-900 rounded-[2.5rem] p-1.5 shadow-2xl relative transform transition-transform group-hover:scale-105">
-            <div className="w-full h-full bg-slate-50 dark:bg-slate-800 rounded-[2rem] flex items-center justify-center text-5xl font-black text-indigo-600">
-              {user.email[0].toUpperCase()}
-            </div>
-          </div>
-          <div className="mt-6 text-center">
-            <h2 className="text-2xl font-black text-slate-800 dark:text-slate-50">{user.email}</h2>
-            <div className="flex flex-wrap items-center justify-center gap-2 mt-3">
-              <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1 rounded-full border border-indigo-100 dark:border-indigo-800">{user.tier} Access</span>
-              <span className="text-[10px] font-black text-orange-500 uppercase tracking-widest bg-orange-50 dark:bg-orange-900/30 px-3 py-1 rounded-full border border-orange-100 dark:border-orange-800">{user.streak} Day Streak</span>
-              <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest bg-emerald-50 dark:bg-emerald-900/30 px-3 py-1 rounded-full border border-emerald-100 dark:border-emerald-800">{stats.avgScore}% Avg Score</span>
-            </div>
-          </div>
-        </div>
-      </section>
+    <div className="max-w-6xl mx-auto px-6 md:px-12 lg:px-20 py-10">
+      <h1 className="text-5xl font-black tracking-tight text-white mb-12 font-display">Account Settings</h1>
 
-      {/* Maths Guru Action Card */}
-      <section 
-        onClick={() => onNavigate?.(AppScreen.MATH_GURU)}
-        className="bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-[2.5rem] p-8 shadow-xl border border-indigo-500 cursor-pointer group overflow-hidden relative active:scale-[0.98] transition-all"
-      >
-        <div className="absolute -right-8 -bottom-8 w-48 h-48 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 transition-all"></div>
-        <div className="flex items-center gap-6 relative z-10">
-          <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center text-white text-3xl">📐</div>
-          <div className="flex-1">
-            <h3 className="text-2xl font-black text-white tracking-tight uppercase">Math Guru Mode</h3>
-            <p className="text-indigo-100 text-xs font-bold uppercase tracking-widest mt-1">Step-by-step problem solver</p>
-          </div>
-          <div className="w-10 h-10 rounded-full border-2 border-white/30 flex items-center justify-center text-white group-hover:translate-x-2 transition-transform">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M9 5l7 7-7 7" /></svg>
-          </div>
-        </div>
-      </section>
-
-      {/* Professional Settings & Support Suite */}
-      <section className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-4 sm:p-6 shadow-sm border border-slate-100 dark:border-slate-800 space-y-2">
-        <div className="px-4 py-2 mb-2">
-          <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Settings & Support</h3>
-        </div>
-
-        {/* 1. Help Centre */}
-        <button 
-          onClick={() => setActiveModal('help')}
-          className="w-full flex items-center gap-4 p-4 rounded-3xl hover:bg-slate-50 dark:hover:bg-slate-950 transition-all group"
-        >
-          <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 rounded-2xl flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform text-2xl">❓</div>
-          <div className="flex-1 text-left">
-            <h4 className="text-sm font-black text-slate-800 dark:text-white">Help Centre</h4>
-            <p className="text-[10px] font-bold text-slate-500 tracking-tight">Get answers, tutorials, and tips for using TutorX.</p>
-          </div>
-          <svg className="w-5 h-5 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M9 5l7 7-7 7" /></svg>
-        </button>
-
-        {/* 2. Report Bug */}
-        <button 
-          onClick={() => setActiveModal('bug')}
-          className="w-full flex items-center gap-4 p-4 rounded-3xl hover:bg-slate-50 dark:hover:bg-slate-950 transition-all group"
-        >
-          <div className="w-12 h-12 bg-rose-50 dark:bg-rose-900/20 rounded-2xl flex items-center justify-center text-rose-600 group-hover:scale-110 transition-transform text-2xl">🐞</div>
-          <div className="flex-1 text-left">
-            <h4 className="text-sm font-black text-slate-800 dark:text-white">Report a Bug</h4>
-            <p className="text-[10px] font-bold text-slate-500 tracking-tight">Found a problem? Let us know so we can fix it.</p>
-          </div>
-          <svg className="w-5 h-5 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M9 5l7 7-7 7" /></svg>
-        </button>
-
-        {/* 3. App Language */}
-        <div className="relative">
-          <div className="w-full flex items-center gap-4 p-4 rounded-3xl group">
-            <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center text-emerald-600 text-2xl">🌐</div>
-            <div className="flex-1 text-left">
-              <h4 className="text-sm font-black text-slate-800 dark:text-white">App Language</h4>
-              <p className="text-[10px] font-bold text-slate-500 tracking-tight">Select the language you want to use in TutorX.</p>
-            </div>
-            <select 
-              value={currentLanguage} 
-              onChange={(e) => handleLangChange(e.target.value)}
-              className="bg-slate-100 dark:bg-slate-800 border-none rounded-xl text-[10px] font-black uppercase px-3 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-            >
-              <option>English (default)</option>
-              <option>Zulu</option>
-              <option>Xhosa</option>
-              <option>Afrikaans</option>
-            </select>
-          </div>
-          {showLangUpdate && (
-            <div className="absolute top-0 right-0 animate-in fade-in slide-in-from-top-1 px-4 py-2 bg-emerald-500 text-white text-[10px] font-black rounded-xl shadow-lg z-20">
-              Language updated successfully.
-            </div>
-          )}
-        </div>
-
-        {/* 4. Contact Support */}
-        <div className="p-4 space-y-4">
-          <div className="bg-slate-50 dark:bg-slate-950 rounded-[2rem] p-6 border border-slate-100 dark:border-slate-800 space-y-4">
-            <div>
-              <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest">Contact Support</h4>
-              <p className="text-[10px] font-bold text-slate-500 leading-relaxed mt-1">Need help? Reach out to CipherX Inc anytime. We respond within 24 hours.</p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <a href="mailto:cipherxinc@gmail.com" className="flex-1 flex items-center justify-center gap-2 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl hover:border-indigo-500 transition-all group">
-                <span className="text-lg group-hover:scale-110 transition-transform">✉️</span>
-                <span className="text-[10px] font-black uppercase tracking-widest">Email Us</span>
-              </a>
-              <a href="https://wa.me/27823737887" target="_blank" rel="noreferrer" className="flex-1 flex items-center justify-center gap-2 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl hover:border-emerald-500 transition-all group">
-                <span className="text-lg group-hover:scale-110 transition-transform">💬</span>
-                <span className="text-[10px] font-black uppercase tracking-widest">WhatsApp</span>
-              </a>
-            </div>
-          </div>
-        </div>
-
-        {/* 5. Legal Row */}
-        <div className="flex border-t border-slate-50 dark:border-slate-800 pt-4 px-4 gap-6">
-          <button onClick={() => setActiveModal('terms')} className="text-[10px] font-black text-slate-400 hover:text-indigo-600 uppercase tracking-widest">Terms of Use</button>
-          <button onClick={() => setActiveModal('privacy')} className="text-[10px] font-black text-slate-400 hover:text-indigo-600 uppercase tracking-widest">Privacy Policy</button>
-        </div>
-      </section>
-
-      {/* Logout & Version */}
-      <section className="px-4 space-y-6">
-        <button 
-          onClick={onLogout}
-          className="w-full py-5 bg-rose-500 hover:bg-rose-600 text-white rounded-[2rem] font-black text-xs uppercase tracking-[0.3em] shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-          Sign Out
-        </button>
-        <div className="text-center space-y-2">
-          <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.4em]">TutorX v1.0.0</p>
-          <p className="text-[9px] font-black text-slate-300 dark:text-slate-700 uppercase tracking-widest">{DEVELOPER_CREDIT}</p>
-        </div>
-      </section>
-
-      {/* Modals Implementation */}
-      {activeModal === 'bug' && (
-        <ModalContainer title="Report a Bug" subtitle="Let us know what's wrong." onClose={() => setActiveModal(null)}>
-          {bugSubmitted ? (
-            <div className="text-center py-12 animate-in zoom-in duration-300">
-              <div className="text-6xl mb-4">✅</div>
-              <h4 className="text-xl font-black text-slate-800 dark:text-white">Submission Successful</h4>
-              <p className="text-sm font-bold text-slate-500 mt-2">Thank you! We’ve received your report.</p>
-            </div>
-          ) : (
-            <form onSubmit={handleBugSubmit} className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Issue Description</label>
-                <textarea 
-                  value={bugDescription}
-                  onChange={(e) => setBugDescription(e.target.value)}
-                  placeholder="Describe the issue here…"
-                  rows={5}
-                  className="w-full p-6 rounded-3xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 text-sm font-bold focus:border-rose-500 outline-none transition-all resize-none"
-                  required
-                />
-              </div>
-              <button type="submit" className="w-full py-5 bg-rose-500 text-white rounded-[1.5rem] font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-all">
-                Submit Report
+      <div className="flex flex-col lg:flex-row gap-12">
+        {/* Sidebar */}
+        <div className="w-full lg:w-80 space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-1 gap-3">
+            {tabs.map(tab => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold transition-all relative overflow-hidden group ${
+                  activeTab === tab 
+                    ? 'text-white' 
+                    : 'text-slate-500 hover:bg-white/5 hover:text-white'
+                }`}
+              >
+                <span className="relative z-10">
+                  {tab === 'General' && <User size={22} />}
+                  {tab === 'Security' && <Shield size={22} />}
+                  {tab === 'Billing' && <CreditCard size={22} />}
+                  {tab === 'Notifications' && <Bell size={22} />}
+                  {tab === 'Display' && <Settings size={22} />}
+                </span>
+                <span className="truncate relative z-10 text-lg">{tab}</span>
+                {activeTab === tab && (
+                  <motion.div 
+                    layoutId="profile-tab-active"
+                    className="absolute inset-0 bg-indigo-600 shadow-lg shadow-indigo-500/20"
+                    transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                  />
+                )}
               </button>
-            </form>
-          )}
-        </ModalContainer>
-      )}
+            ))}
+          </div>
+          
+          <div className="pt-8 border-t border-white/5 mt-8 space-y-3">
+            <button 
+              onClick={onAboutClick}
+              className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold text-slate-500 hover:bg-white/5 hover:text-white transition-all"
+            >
+              <Zap size={22} />
+              <span className="text-lg">About TutorX</span>
+            </button>
+            <button 
+              onClick={onContactClick}
+              className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold text-slate-500 hover:bg-white/5 hover:text-white transition-all"
+            >
+              <Mail size={22} />
+              <span className="text-lg">Contact Us</span>
+            </button>
+            <button 
+              onClick={onPrivacyClick}
+              className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold text-slate-500 hover:bg-white/5 hover:text-white transition-all"
+            >
+              <Shield size={22} />
+              <span className="text-lg">Privacy Policy</span>
+            </button>
+            <button 
+              onClick={onSupportClick}
+              className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold text-slate-500 hover:bg-white/5 hover:text-white transition-all"
+            >
+              <HelpCircle size={22} />
+              <span className="text-lg">Contact Support</span>
+            </button>
+            <button 
+              onClick={onTermsClick}
+              className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold text-slate-500 hover:bg-white/5 hover:text-white transition-all"
+            >
+              <Scale size={22} />
+              <span className="text-lg">Terms of Service</span>
+            </button>
+            <button 
+              onClick={() => firebaseService.logout()}
+              className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold text-red-400 hover:bg-red-400/5 transition-all"
+            >
+              <LogOut size={22} />
+              <span className="text-lg">Sign Out</span>
+            </button>
+          </div>
+        </div>
 
-      {activeModal === 'help' && (
-        <ModalContainer title="Help Centre" subtitle="Tutorials & Documentation" onClose={() => setActiveModal(null)}>
-          <div className="space-y-6">
-            <div className="relative">
-              <input type="text" placeholder="Search help articles…" className="w-full pl-12 pr-6 py-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 text-sm font-bold outline-none" />
-              <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-            </div>
-            <div className="grid grid-cols-1 gap-3">
-              {["Getting Started", "Maths Guru Mode Guide", "Learning Modes", "Account & Subscription"].map((topic, i) => (
-                <button key={i} className="flex items-center justify-between p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-50 dark:border-slate-800 hover:border-indigo-500 transition-all group">
-                  <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{topic}</span>
-                  <svg className="w-4 h-4 text-slate-300 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M9 5l7 7-7 7" /></svg>
+        {/* Content */}
+        <div className="flex-1 bg-slate-900/50 rounded-[3rem] p-8 md:p-12 shadow-2xl border border-white/5 backdrop-blur-xl min-w-0">
+          {activeTab === 'General' && (
+            <div className="space-y-12">
+              <div className="flex flex-col md:flex-row items-center gap-8">
+                <div className="relative group">
+                  <div className="w-32 h-32 rounded-[2.5rem] bg-indigo-600 text-white flex items-center justify-center text-5xl font-black border-4 border-white/5 shadow-2xl relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <span className="relative z-10">{profile.fullName.charAt(0)}</span>
+                  </div>
+                  <button className="absolute -bottom-2 -right-2 w-12 h-12 rounded-2xl bg-slate-800 shadow-2xl border border-white/5 flex items-center justify-center text-slate-400 hover:text-white transition-colors">
+                    <Camera size={22} />
+                  </button>
+                </div>
+                <div className="text-center md:text-left">
+                  <h3 className="text-4xl font-black text-white font-display mb-2">{profile.fullName}</h3>
+                  <p className="text-slate-500 font-medium text-lg mb-4">{profile.email}</p>
+                  <div className="inline-flex items-center px-4 py-2 rounded-full bg-indigo-500/10 text-indigo-400 text-xs font-black uppercase tracking-[0.2em] border border-indigo-500/20">
+                    {profile.tier} Member
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                <div className="p-8 bg-white/5 rounded-[2rem] border border-white/5">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-2">Total XP</p>
+                  <p className="text-4xl font-black text-white">{profile.xp || 0}</p>
+                </div>
+                <div className="p-8 bg-white/5 rounded-[2rem] border border-white/5">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-2">Neural Link Strength</p>
+                  <p className="text-4xl font-black text-white">{profile.learningProgress}%</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                <div className="space-y-3">
+                  <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 ml-2">Full Name</label>
+                  <input
+                    type="text"
+                    defaultValue={profile.fullName}
+                    className="w-full px-6 py-4 bg-white/5 border border-white/5 focus:border-indigo-500/50 focus:bg-white/10 rounded-2xl outline-none transition-all font-medium text-white text-lg"
+                  />
+                </div>
+                <div className="space-y-3">
+                  <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 ml-2">Email Address</label>
+                  <input
+                    type="email"
+                    defaultValue={profile.email}
+                    disabled
+                    className="w-full px-6 py-4 bg-white/5 border border-white/5 rounded-2xl outline-none font-medium text-white text-lg opacity-40 cursor-not-allowed"
+                  />
+                </div>
+                <div className="space-y-3">
+                  <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 ml-2">Role</label>
+                  <select
+                    defaultValue={profile.role}
+                    className="w-full px-6 py-4 bg-white/5 border border-white/5 focus:border-indigo-500/50 focus:bg-white/10 rounded-2xl outline-none transition-all font-bold text-white text-lg appearance-none"
+                  >
+                    <option className="bg-slate-900">Student</option>
+                    <option className="bg-slate-900">Tutor</option>
+                  </select>
+                </div>
+                <div className="space-y-3">
+                  <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 ml-2">Learning Goal</label>
+                  <select
+                    className="w-full px-6 py-4 bg-white/5 border border-white/5 focus:border-indigo-500/50 focus:bg-white/10 rounded-2xl outline-none transition-all font-bold text-white text-lg appearance-none"
+                  >
+                    <option className="bg-slate-900">Academic Excellence</option>
+                    <option className="bg-slate-900">Professional Growth</option>
+                    <option className="bg-slate-900">Personal Interest</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="pt-10 border-t border-white/5 flex justify-end">
+                <button className="px-10 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-xs hover:bg-indigo-500 transition-all shadow-xl shadow-indigo-600/20 active:scale-95">
+                  Save Changes
                 </button>
-              ))}
-            </div>
-          </div>
-        </ModalContainer>
-      )}
-
-      {activeModal === 'terms' && (
-        <ModalContainer title="Terms of Use" subtitle="Rules & Conditions" onClose={() => setActiveModal(null)}>
-          <div className="prose prose-sm dark:prose-invert space-y-4">
-            <p className="font-bold text-slate-600 dark:text-slate-300 leading-relaxed">
-              Read the rules and conditions for using TutorX. By accessing the platform, you agree to comply with our academic integrity standards.
-            </p>
-            <h4 className="font-black text-slate-800 dark:text-white uppercase tracking-tighter">Usage Agreement</h4>
-            <p className="text-sm text-slate-500">TutorX is an AI aid. While we strive for accuracy, users are responsible for final verification of academic work.</p>
-            <button onClick={() => setActiveModal(null)} className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest mt-6">Accept & Continue</button>
-          </div>
-        </ModalContainer>
-      )}
-
-      {activeModal === 'privacy' && (
-        <ModalContainer title="Privacy Policy" subtitle="How we protect your data" onClose={() => setActiveModal(null)}>
-          <div className="prose prose-sm dark:prose-invert space-y-4">
-            <p className="font-bold text-slate-600 dark:text-slate-300 leading-relaxed">
-              We take your privacy seriously. Here is how your data is handled at TutorX:
-            </p>
-            <div className="space-y-4">
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800">
-                <h5 className="text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-1">Chat Memory</h5>
-                <p className="text-[11px] font-bold text-slate-500">History is used to maintain context in your current learning session and personalized tutor memory.</p>
-              </div>
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800">
-                <h5 className="text-[10px] font-black uppercase tracking-widest text-emerald-500 mb-1">OCR Scans</h5>
-                <p className="text-[11px] font-bold text-slate-500">Math problem images are processed temporarily for analysis and are not stored for marketing.</p>
-              </div>
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800">
-                <h5 className="text-[10px] font-black uppercase tracking-widest text-rose-500 mb-1">Payment Data</h5>
-                <p className="text-[11px] font-bold text-slate-500">All financial transactions are handled securely by Yoco. We never store credit card information.</p>
               </div>
             </div>
-          </div>
-        </ModalContainer>
-      )}
+          )}
 
+          {activeTab === 'Security' && (
+            <div className="space-y-12">
+              <div>
+                <h3 className="text-4xl font-black text-white mb-4 tracking-tight font-display">Security Protocol</h3>
+                <p className="text-slate-500 font-medium text-lg">Manage your neural access credentials and security layers.</p>
+              </div>
+
+              <div className="space-y-8">
+                <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/5">
+                  <div className="flex items-center justify-between mb-8">
+                    <div>
+                      <p className="text-xl font-black text-white mb-1">Two-Factor Authentication</p>
+                      <p className="text-slate-500 font-medium">Add an extra layer of security to your neural link.</p>
+                    </div>
+                    <button 
+                      onClick={() => setTwoFactor(!twoFactor)}
+                      className={`w-16 h-9 rounded-full relative transition-all duration-300 ${twoFactor ? 'bg-indigo-600 shadow-xl shadow-indigo-600/20' : 'bg-white/10'}`}
+                    >
+                      <motion.div 
+                        animate={{ x: twoFactor ? 28 : 4 }}
+                        className="absolute top-1.5 w-6 h-6 bg-white rounded-full shadow-sm" 
+                      />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/5">
+                  <h4 className="text-xl font-black text-white mb-6">Update Access Key</h4>
+                  <div className="space-y-4">
+                    <input
+                      type="password"
+                      placeholder="Current Password"
+                      className="w-full px-6 py-4 bg-white/5 border border-white/5 focus:border-indigo-500/50 focus:bg-white/10 rounded-2xl outline-none transition-all font-medium text-white text-lg"
+                    />
+                    <input
+                      type="password"
+                      placeholder="New Password"
+                      className="w-full px-6 py-4 bg-white/5 border border-white/5 focus:border-indigo-500/50 focus:bg-white/10 rounded-2xl outline-none transition-all font-medium text-white text-lg"
+                    />
+                    <button className="px-8 py-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-xs transition-all border border-white/5">
+                      Change Password
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/5">
+                  <h4 className="text-xl font-black text-white mb-6">Active Neural Sessions</h4>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
+                          <Settings size={20} />
+                        </div>
+                        <div>
+                          <p className="font-bold text-white">Chrome on macOS</p>
+                          <p className="text-xs text-slate-500">Current Session • London, UK</p>
+                        </div>
+                      </div>
+                      <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-full border border-emerald-500/20">Active</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'Notifications' && (
+            <div className="space-y-12">
+              <div>
+                <h3 className="text-4xl font-black text-white mb-4 tracking-tight font-display">Neural Alerts</h3>
+                <p className="text-slate-500 font-medium text-lg">Configure how you receive updates and progress reports.</p>
+              </div>
+
+              <div className="space-y-6">
+                {[
+                  { id: 'email', title: 'Email Notifications', desc: 'Receive masterclass updates and neural insights via email.' },
+                  { id: 'push', title: 'Push Notifications', desc: 'Get real-time alerts for quiz results and streak milestones.' },
+                  { id: 'weekly', title: 'Weekly Progress Reports', desc: 'A detailed analysis of your cognitive growth delivered every Monday.' }
+                ].map((item) => (
+                  <div key={item.id} className="p-8 bg-white/5 rounded-[2.5rem] border border-white/5 flex items-center justify-between group hover:border-indigo-500/30 transition-all">
+                    <div className="max-w-md">
+                      <p className="text-xl font-black text-white mb-1">{item.title}</p>
+                      <p className="text-slate-500 font-medium">{item.desc}</p>
+                    </div>
+                    <button 
+                      onClick={() => setNotifications(prev => ({ ...prev, [item.id]: !prev[item.id as keyof typeof notifications] }))}
+                      className={`w-16 h-9 rounded-full relative transition-all duration-300 ${notifications[item.id as keyof typeof notifications] ? 'bg-indigo-600 shadow-xl shadow-indigo-600/20' : 'bg-white/10'}`}
+                    >
+                      <motion.div 
+                        animate={{ x: notifications[item.id as keyof typeof notifications] ? 28 : 4 }}
+                        className="absolute top-1.5 w-6 h-6 bg-white rounded-full shadow-sm" 
+                      />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'Billing' && (
+            <div className="space-y-12">
+              <div className="bg-slate-900 rounded-[3rem] p-10 text-white relative overflow-hidden border border-white/5">
+                <div className="relative z-10">
+                  <p className="text-indigo-400 font-black uppercase tracking-[0.2em] text-xs mb-3">Current Plan</p>
+                  <h3 className="text-4xl font-black mb-6 font-display">TutorX {profile.tier}</h3>
+                  <p className="text-slate-400 font-medium text-lg mb-8">Your next billing date is April 12, 2026.</p>
+                  <button className="px-8 py-4 bg-white text-slate-900 rounded-2xl font-black uppercase tracking-[0.2em] text-xs hover:bg-slate-100 transition-all shadow-xl active:scale-95">
+                    Upgrade Plan
+                  </button>
+                </div>
+                <CreditCard className="absolute -right-12 -bottom-12 w-64 h-64 text-white opacity-5" />
+              </div>
+
+              <div>
+                <h4 className="text-2xl font-black text-white mb-6 font-display">Payment Methods</h4>
+                <div className="p-6 bg-white/5 border border-white/5 rounded-3xl flex items-center justify-between group hover:border-indigo-500/30 transition-all">
+                  <div className="flex items-center gap-6">
+                    <div className="w-16 h-10 bg-white/10 rounded-xl flex items-center justify-center font-black text-slate-400 text-xs border border-white/5">VISA</div>
+                    <div>
+                      <p className="font-black text-white text-lg tracking-wider">•••• •••• •••• 4242</p>
+                      <p className="text-sm text-slate-500 font-bold">Expires 12/28</p>
+                    </div>
+                  </div>
+                  <button className="text-slate-500 hover:text-indigo-400 font-black uppercase tracking-[0.2em] text-xs transition-colors">Edit</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'Display' && (
+            <div className="space-y-12">
+              <div>
+                <h3 className="text-4xl font-black text-white mb-4 tracking-tight font-display">Display Settings</h3>
+                <p className="text-slate-500 font-medium text-lg">Optimize the neural interface for your visual comfort.</p>
+              </div>
+
+              <div className="space-y-8">
+                <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/5">
+                  <div className="flex items-center justify-between mb-8">
+                    <div>
+                      <p className="text-xl font-black text-white mb-1">Interface Theme</p>
+                      <p className="text-slate-500 font-medium">Choose between light, dark, or system neural sync.</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    {['Light', 'Dark', 'Auto'].map(t => (
+                      <button 
+                        key={t}
+                        onClick={() => setTheme(t)}
+                        className={`py-4 rounded-2xl font-black uppercase tracking-[0.2em] text-xs border-2 transition-all ${
+                          theme === t 
+                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-xl shadow-indigo-600/20' 
+                            : 'bg-white/5 border-white/5 text-slate-500 hover:border-indigo-500/30 hover:text-white'
+                        }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/5">
+                  <div className="flex items-center justify-between mb-8">
+                    <div>
+                      <p className="text-xl font-black text-white mb-1">Neural Resolution</p>
+                      <p className="text-slate-500 font-medium">Adjust the information density of the interface.</p>
+                    </div>
+                  </div>
+                  <div className="space-y-6">
+                    <input 
+                      type="range" 
+                      min="1" 
+                      max="3" 
+                      value={density}
+                      onChange={(e) => updateDensity(parseInt(e.target.value))}
+                      className="w-full h-2 bg-white/10 rounded-full appearance-none cursor-pointer accent-indigo-600" 
+                    />
+                    <div className="flex justify-between text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+                      <span>Standard</span>
+                      <span>High Density</span>
+                      <span>Ultra</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xl font-black text-white mb-1">Auto-Adjust Resolution</p>
+                      <p className="text-slate-500 font-medium">Automatically optimize display based on device capabilities.</p>
+                    </div>
+                    <div className="w-16 h-9 bg-indigo-600 rounded-full relative cursor-pointer shadow-xl shadow-indigo-600/20">
+                      <div className="absolute right-1.5 top-1.5 w-6 h-6 bg-white rounded-full shadow-sm" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab !== 'General' && activeTab !== 'Billing' && activeTab !== 'Display' && activeTab !== 'Security' && activeTab !== 'Notifications' && (
+            <div className="flex flex-col items-center justify-center py-32 text-center">
+              <div className="w-24 h-24 rounded-[2rem] bg-white/5 flex items-center justify-center text-slate-700 mb-8 border border-white/5">
+                <Settings size={48} className="animate-spin-slow" />
+              </div>
+              <h3 className="text-3xl font-black text-white mb-3 font-display">{activeTab} Settings</h3>
+              <p className="text-slate-500 font-medium text-lg max-w-md">This section is currently being optimized for your neural engine. Check back soon.</p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

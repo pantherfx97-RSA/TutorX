@@ -1,161 +1,80 @@
-
 import React from 'react';
-import { SubscriptionTier } from '../types';
+import { motion } from 'motion/react';
+import { Check, Sparkles, Zap, Shield, Globe } from 'lucide-react';
+import { PLANS } from '../constants';
 
-interface PlansViewProps {
-  currentTier: SubscriptionTier;
-  onTriggerUpgrade: (tier: SubscriptionTier) => void;
-}
-
-const PlansView: React.FC<PlansViewProps> = ({ currentTier, onTriggerUpgrade }) => {
-  const tiers = [
-    {
-      id: SubscriptionTier.FREE,
-      name: "Free Access",
-      label: "Standard Portal",
-      price: "R0",
-      description: "Foundational tools for students starting their AI learning journey.",
-      features: [
-        { text: "100 AI Questions per day", included: true },
-        { text: "Standard AI Reasoning speed", included: true },
-        { text: "Basic & Intermediate Subjects", included: true },
-        { text: "Mobile PWA Installation", included: true },
-        { text: "Document & Image Analysis", included: false },
-        { text: "Unlimited Chat Sessions", included: false },
-        { text: "Neural Voice Lectures", included: false },
-        { text: "Advanced Academic Logic", included: false }
-      ],
-      buttonText: currentTier === SubscriptionTier.FREE ? "Current Plan" : "Downgrade",
-      disabled: currentTier === SubscriptionTier.FREE
-    },
-    {
-      id: SubscriptionTier.PREMIUM,
-      name: "Elite Premium",
-      label: "Advanced Clearance",
-      price: "R99",
-      description: "Powerful precision tools for high-performing students.",
-      features: [
-        { text: "Unlimited AI Questions", included: true },
-        { text: "Priority Reasoning Speed", included: true },
-        { text: "Document & Image Analysis", included: true },
-        { text: "Full Masterclass Summary PDFS", included: true },
-        { text: "Advanced Subject Support", included: true },
-        { text: "Ad-free experience", included: true },
-        { text: "Neural Voice Lectures", included: false },
-        { text: "Pro Model Priority", included: false }
-      ],
-      buttonText: currentTier === SubscriptionTier.PREMIUM ? "Current Plan" : (currentTier === SubscriptionTier.PRO ? "Included" : "Go Elite"),
-      disabled: currentTier === SubscriptionTier.PREMIUM || currentTier === SubscriptionTier.PRO,
-      popular: true
-    },
-    {
-      id: SubscriptionTier.PRO,
-      name: "Neural Pro",
-      label: "Total Mastery",
-      price: "R199",
-      description: "The ultimate engine for university-grade research and exams.",
-      features: [
-        { text: "Everything in Elite Premium", included: true },
-        { text: "Unlimited Document Analysis", included: true },
-        { text: "Neural Voice Lectures", included: true },
-        { text: "Gemini 3 Pro reasoning core", included: true },
-        { text: "Priority Support Access", included: true },
-        { text: "Full Academic Archive", included: true },
-        { text: "Early feature beta access", included: true },
-        { text: "Multi-device synchronization", included: true }
-      ],
-      buttonText: currentTier === SubscriptionTier.PRO ? "Current Plan" : "Go Pro",
-      disabled: currentTier === SubscriptionTier.PRO,
-      dark: true
-    }
-  ];
-
+const PlansView: React.FC = () => {
   return (
-    <div className="space-y-12 py-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="text-center space-y-4 max-w-2xl mx-auto">
-        <h2 className="text-3xl sm:text-5xl font-black text-slate-800 dark:text-white tracking-tight">Access Tiers</h2>
-        <p className="text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-          Select the clearance level that matches your academic goals. From foundational help to university-grade neural research.
+    <div className="max-w-6xl mx-auto px-4 py-12">
+      <div className="text-center mb-16">
+        <h1 className="text-5xl font-black tracking-tight text-slate-900 mb-4">Choose Your Neural Tier</h1>
+        <p className="text-slate-500 font-medium text-xl max-w-2xl mx-auto">
+          Scale your learning engine with advanced AI capabilities and unlimited neural links.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 px-2 sm:px-0">
-        {tiers.map((tier) => (
-          <div 
-            key={tier.id} 
-            className={`relative flex flex-col p-8 rounded-[3rem] border-2 transition-all hover:scale-[1.02] ${
-              tier.dark 
-                ? 'bg-slate-900 border-indigo-500 text-white shadow-2xl shadow-indigo-500/20' 
-                : tier.popular 
-                  ? 'bg-white dark:bg-slate-900 border-indigo-600 shadow-xl' 
-                  : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800'
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        {PLANS.map((plan, idx) => (
+          <motion.div
+            key={plan.name}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: idx * 0.1 }}
+            className={`relative bg-white rounded-[2rem] md:rounded-[3rem] p-8 md:p-10 border-2 transition-all hover:shadow-2xl flex flex-col ${
+              idx === 1 ? 'border-indigo-600 shadow-xl shadow-indigo-100 lg:scale-105 z-10' : 'border-slate-100 shadow-lg'
             }`}
           >
-            {tier.popular && (
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-[0.3em] px-4 py-1.5 rounded-full shadow-lg">
+            {idx === 1 && (
+              <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-indigo-600 text-white px-6 py-2 rounded-full text-xs font-black uppercase tracking-widest shadow-lg">
                 Most Popular
               </div>
             )}
-
+            
             <div className="mb-8">
-              <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${tier.dark ? 'bg-indigo-500/20 text-indigo-400' : 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600'}`}>
-                {tier.label}
-              </span>
-              <h3 className="text-2xl font-black mt-4">{tier.name}</h3>
-              <div className="mt-4 flex items-baseline gap-1">
-                <span className="text-4xl font-black">{tier.price}</span>
-                <span className={`text-xs font-bold ${tier.dark ? 'text-slate-400' : 'text-slate-500'}`}>/month</span>
+              <h3 className="text-2xl font-black text-slate-900 mb-2">{plan.name}</h3>
+              <div className="flex items-baseline gap-1">
+                <span className="text-5xl font-black text-slate-900">{plan.price}</span>
+                {plan.price !== 'Custom' && <span className="text-slate-400 font-bold text-lg">/month</span>}
               </div>
-              <p className={`mt-4 text-xs font-medium leading-relaxed ${tier.dark ? 'text-slate-400' : 'text-slate-500'}`}>
-                {tier.description}
-              </p>
             </div>
 
-            <div className="flex-1 space-y-4 mb-10">
-              {tier.features.map((feature, i) => (
-                <div key={i} className="flex items-start gap-3">
-                  <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
-                    feature.included 
-                      ? (tier.dark ? 'bg-indigo-500 text-white' : 'bg-indigo-600 text-white') 
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-300 dark:text-slate-600'
-                  }`}>
-                    {feature.included ? (
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}><path d="M5 13l4 4L19 7" /></svg>
-                    ) : (
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}><path d="M6 18L18 6M6 6l12 12" /></svg>
-                    )}
+            <ul className="space-y-5 mb-10 flex-1">
+              {plan.features.map(feature => (
+                <li key={feature} className="flex items-start gap-4 text-slate-600 font-medium">
+                  <div className="w-6 h-6 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 mt-0.5">
+                    <Check size={14} />
                   </div>
-                  <span className={`text-[11px] font-bold ${
-                    !feature.included ? 'text-slate-400 dark:text-slate-600 line-through decoration-slate-300 dark:decoration-slate-700' : (tier.dark ? 'text-slate-200' : 'text-slate-700 dark:text-slate-300')
-                  }`}>
-                    {feature.text}
-                  </span>
-                </div>
+                  {feature}
+                </li>
               ))}
-            </div>
+            </ul>
 
-            <button
-              onClick={() => !tier.disabled && onTriggerUpgrade(tier.id)}
-              disabled={tier.disabled}
-              className={`w-full py-5 rounded-[1.5rem] font-black text-xs uppercase tracking-[0.2em] transition-all active:scale-[0.98] ${
-                tier.disabled 
-                  ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600' 
-                  : tier.dark
-                    ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-xl shadow-indigo-900/40'
-                    : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-xl'
-              }`}
-            >
-              {tier.buttonText}
+            <button className={`w-full py-4 rounded-2xl font-black uppercase tracking-widest transition-all shadow-lg ${
+              idx === 1 ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-200' : 'bg-slate-900 text-white hover:bg-black shadow-slate-200'
+            }`}>
+              Get Started
             </button>
-          </div>
+          </motion.div>
         ))}
       </div>
 
-      <div className="bg-slate-50 dark:bg-slate-900/50 rounded-[3rem] p-8 border border-slate-100 dark:border-slate-800 text-center space-y-4">
-        <h4 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest">Secure South African Billing</h4>
-        <p className="text-[11px] text-slate-500 dark:text-slate-400 max-w-xl mx-auto font-medium">
-          Payments are handled via secure Yoco encryption. Upgrade anytime. Your study history and neural archives are encrypted and private.
-        </p>
+      <div className="mt-20 bg-white rounded-[2rem] md:rounded-[3rem] p-8 md:p-12 border border-slate-100 shadow-xl shadow-slate-200/50 flex flex-col md:flex-row items-center gap-8 md:gap-12 text-center md:text-left">
+        <div className="flex-1">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-xs font-black uppercase tracking-widest mb-6">
+            <Sparkles size={14} />
+            Enterprise Solutions
+          </div>
+          <h2 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900 mb-4">TutorX for Institutions</h2>
+          <p className="text-slate-500 font-medium text-base md:text-lg leading-relaxed">
+            Empower your entire school or organization with a custom-trained neural engine. 
+            Integrate your own curriculum and track student progress in real-time.
+          </p>
+        </div>
+        <div className="shrink-0 w-full md:w-auto">
+          <button className="w-full md:w-auto px-10 py-5 bg-white border-2 border-slate-900 text-slate-900 rounded-2xl font-black uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all">
+            Contact Sales
+          </button>
+        </div>
       </div>
     </div>
   );

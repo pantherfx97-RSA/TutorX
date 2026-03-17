@@ -1,245 +1,294 @@
+import { GoogleGenAI, Modality } from "@google/genai";
 
-import { GoogleGenAI, Type, Modality, GenerateContentResponse } from "@google/genai";
-import { LessonContent, DifficultyLevel, SubscriptionTier, TutorMode } from "../types";
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
-const getAIClient = () => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey || apiKey.length < 5) {
-    throw new Error("AI_ENGINE_OFFLINE: No valid API Key detected.");
-  }
-  return new GoogleGenAI({ apiKey: process.env.API_KEY });
-};
-
-const SYSTEM_PROMPT = `You are TutorX, a world-class intelligent tutoring assistant architected by W Nthani for CipherX Inc.
-
-STRICT TYPOGRAPHY & VISUAL PROTOCOL:
-1. **Visual Hierarchy**: Use ### **[TITLE]** for primary headings.
-2. **Emphasis**: Wrap every single important term or new concept in **double asterisks** (**like this**).
-3. **Emojis**: Start every paragraph or section with a relevant emoji to anchor the visual focus.
-4. **Spacing**: Use double line breaks between sections.
-5. **Tone**: Be encouraging and high-clarity.`;
-
-const MATH_GURU_PROMPT = `You are TutorX in MATHS GURU MODE.
-
-ROLE:
-You are an expert mathematics tutor that solves problems step-by-step according to school syllabus learning methods.
-
-GOAL:
-Help learners understand HOW to solve the problem, not just give the final answer.
-
-MATHEMATICAL FORMATTING PROTOCOL (CRITICAL):
-1. **NO LATEX**: Never use dollar signs ($) or raw LaTeX commands.
-2. **UNICODE SYMBOLS**: Use proper mathematical Unicode characters (x², y³, 2ⁿ, ×, ÷, ±, ≠, ≈, √, π, Σ, Δ).
-3. **VISUAL CLARITY**: Use white space and line breaks to make equations stand out.
-
-TEACHING METHOD structure:
-1. ### **PROBLEM UNDERSTANDING**
-2. ### **GIVEN INFORMATION**
-3. ### **METHOD SELECTION**
-4. ### **STEP-BY-STEP SOLUTION**
-5. ### **FINAL ANSWER**`;
-
-const getOptimalModel = (tier: SubscriptionTier) => {
-  return tier === SubscriptionTier.PRO ? 'gemini-3-pro-preview' : 'gemini-3-flash-preview';
-};
-
-export const generateLesson = async (promptData: string, level: DifficultyLevel, tier: SubscriptionTier = SubscriptionTier.FREE): Promise<LessonContent> => {
-  const ai = getAIClient();
-  const model = getOptimalModel(tier);
-
-  const fullPrompt = `${SYSTEM_PROMPT}
-  CURRENT TASK: Deliver a masterclass briefing.
-  Input Data: ${promptData}
-  Format: RAW JSON ONLY.`;
-
+const withRetry = async <T>(fn: () => Promise<T>, retries = 3, delay = 2000): Promise<T> => {
   try {
-    const response = await ai.models.generateContent({
-      model: model,
-      contents: fullPrompt,
-      config: {
-        temperature: 0.7,
-        thinkingConfig: { thinkingBudget: tier === SubscriptionTier.PRO ? 2048 : 0 },
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            topic: { type: Type.STRING },
-            lesson: { type: Type.STRING },
-            summary: { type: Type.ARRAY, items: { type: Type.STRING } },
-            quiz: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  question: { type: Type.STRING },
-                  options: { type: Type.ARRAY, items: { type: Type.STRING } },
-                  correct_answer: { type: Type.STRING }
-                },
-                required: ["question", "options", "correct_answer"]
-              }
-            },
-            next_topics: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  topic: { type: Type.STRING },
-                  difficulty: { type: Type.STRING }
-                }
-              }
-            }
-          },
-          required: ["topic", "lesson", "summary", "quiz", "next_topics"]
-        }
-      }
-    });
-
-    if (!response || !response.text) throw new Error("Empty AI response.");
-    return JSON.parse(response.text.trim()) as LessonContent;
+    return await fn();
   } catch (error: any) {
-    throw new Error(`Curation Protocol Failed: ${error.message}`);
-  }
-};
-
-export async function* askTutorStream(
-  question: string, 
-  context: LessonContent | { topic: string }, 
-  history: {role: 'user' | 'model', text: string}[], 
-  tier: SubscriptionTier = SubscriptionTier.FREE,
-  mode: TutorMode = 'auto'
-) {
-  const ai = getAIClient();
-  const model = getOptimalModel(tier);
-  
-  try {
-    const chat = ai.chats.create({
-      model: model,
-      history: history.map(h => ({ role: h.role, parts: [{ text: h.text }] })),
-      config: { 
-        systemInstruction: SYSTEM_PROMPT + `\n\nCurrent Topic: ${context.topic}\n\nNEURAL STATE: [${mode.toUpperCase()} MODE].`,
-        temperature: 0.7
+    const isRateLimit = error?.message?.includes('429') || error?.status === 'RESOURCE_EXHAUSTED';
+    
+    if (retries <= 0) {
+      if (isRateLimit) {
+        throw new Error("Neural capacity reached. The AI is currently handling too many requests. Please wait a minute and try again.");
       }
-    });
-    const result = await chat.sendMessageStream({ message: question });
-    for await (const chunk of result) {
-      const c = chunk as GenerateContentResponse;
-      yield c.text;
+      throw error;
     }
-  } catch (error: any) {
-    yield `Neural link interrupted. Please check your connection.`;
+
+    // If it's a rate limit, use a longer delay
+    const nextDelay = isRateLimit ? delay * 3 : delay * 2;
+    console.warn(`API call failed (${isRateLimit ? 'Rate Limit' : 'Error'}), retrying in ${nextDelay}ms...`, error);
+    
+    await new Promise(resolve => setTimeout(resolve, nextDelay));
+    return withRetry(fn, retries - 1, nextDelay);
   }
-}
+};
 
-export async function* askMathGuruStream(
-  question: string,
-  image?: { data: string; mimeType: string },
-  tier: SubscriptionTier = SubscriptionTier.FREE
-) {
-  const ai = getAIClient();
-  const model = getOptimalModel(tier);
+export const geminiService = {
+  generateSpeech: async (text: string, voiceName: 'Zephyr' | 'Puck' | 'Charon' | 'Kore' | 'Fenrir' = 'Zephyr') => {
+    return withRetry(async () => {
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash-preview-tts",
+        contents: [{ parts: [{ text: `Read this educational content clearly and professionally: ${text}` }] }],
+        config: {
+          responseModalities: [Modality.AUDIO],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName },
+            },
+          },
+        },
+      });
 
-  const parts: any[] = [{ text: question || "Please solve this math problem." }];
-  if (image) {
-    parts.push({
-      inlineData: {
-        data: image.data,
-        mimeType: image.mimeType
+      const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+      return base64Audio;
+    });
+  },
+
+  generateMasterclass: async (subject: string, level: string, focus: string, onChunk?: (text: string) => void) => {
+    const response = await ai.models.generateContentStream({
+      model: "gemini-3-flash-preview",
+      contents: `Generate a structured masterclass for ${subject} at ${level} level, focusing on ${focus}.
+      
+      The masterclass MUST include:
+      1. Lesson Breakdown (Modules)
+      2. Key Concepts for each module
+      3. Detailed Examples
+      4. Summary and Next Steps
+      
+      Use professional Markdown formatting with clear headings and bullet points.`,
+    });
+    let fullText = '';
+    for await (const chunk of response) {
+      const text = chunk.text || '';
+      fullText += text;
+      if (onChunk) onChunk(text);
+    }
+    return fullText;
+  },
+
+  generateLessonStream: async (topic: string, level: string, onChunk: (text: string) => void) => {
+    const response = await ai.models.generateContentStream({
+      model: "gemini-3-flash-preview",
+      contents: `Generate a detailed lesson for ${topic} at ${level} level. 
+      Include introduction, core concepts, examples, and a summary. 
+      Use Markdown formatting.`,
+    });
+    for await (const chunk of response) {
+      onChunk(chunk.text || '');
+    }
+  },
+
+  generateQuiz: async (topic: string, difficulty: string = 'Intermediate', count: number = 5) => {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: `Generate a ${count}-question multiple choice quiz about ${topic} at ${difficulty} level.
+      Return the response as a JSON array of objects with the following structure:
+      {
+        "id": "string",
+        "question": "string",
+        "options": ["string", "string", "string", "string"],
+        "correctAnswer": number (0-3),
+        "explanation": "string"
+      }`,
+      config: {
+        responseMimeType: "application/json",
       }
     });
-  }
+    return JSON.parse(response.text || '[]');
+  },
 
-  try {
-    const response = await ai.models.generateContentStream({
-      model: model,
-      contents: { parts },
+  chatWithTutorStream: async (
+    history: { role: string; text: string }[], 
+    message: string, 
+    onChunk: (text: string) => void,
+    subject: string = 'General Help',
+    difficulty: string = 'Intermediate',
+    learningMode: string = 'Standard'
+  ) => {
+    const subjectPrompts: Record<string, string> = {
+      'Math': 'You are a Math Guru. Use LaTeX for formulas. Explain steps clearly. Focus on logic and proofs.',
+      'Science': 'You are a Science Expert. Explain physical laws, biological processes, or chemical reactions with real-world analogies.',
+      'English': 'You are a Language & Literature expert. Focus on grammar, style, analysis, and creative expression.',
+      'General Help': 'You are a versatile AI Tutor. Provide clear, structured, and helpful explanations across any subject.'
+    };
+
+    const modePrompts: Record<string, string> = {
+      'ELI10': 'Explain Like I’m 10. Use analogies involving toys, sports, or simple stories. No jargon. Be very encouraging.',
+      'Exam Mode': 'Focus on direct, structured answers. Use bullet points for key facts. Highlight common exam pitfalls.',
+      'University Mode': 'Provide detailed, academic explanations. Use peer-reviewed terminology and assume a high level of foundational knowledge.',
+      'Slow Learner Mode': 'Break everything down into tiny, simplified steps. Check for understanding frequently. Use very gentle language.',
+      'Quick Revision Mode': 'Provide concise summaries only. Focus on the most critical points and definitions.',
+      'Standard': 'Provide a balanced, structured educational explanation.'
+    };
+
+    const chat = ai.chats.create({
+      model: "gemini-3-flash-preview",
       config: {
-        systemInstruction: MATH_GURU_PROMPT,
-        temperature: 0.1,
+        systemInstruction: `You are TutorX, a premium AI educational architect. 
+        
+        CURRENT CONTEXT:
+        - SUBJECT: ${subject}
+        - DIFFICULTY: ${difficulty}
+        - LEARNING MODE: ${learningMode}
+        
+        ${subjectPrompts[subject] || subjectPrompts['General Help']}
+        ${modePrompts[learningMode] || modePrompts['Standard']}
+        
+        CRITICAL RULES:
+        1. **EDUCATIONAL & SAFE:** Never provide harmful, inappropriate, or illegal content. If asked, politely decline and redirect to learning.
+        2. **STEP-BY-STEP:** Always explain complex topics in a logical, numbered sequence.
+        3. **STRUCTURED:** Use Markdown headings (##, ###), bold text, and bullet points for high readability.
+        4. **ENCOURAGING:** Encourage the student to think. Ask a follow-up question at the end to test their understanding.
+        5. **NO GREETINGS:** Get straight to the explanation.
+        
+        Format your response like a professional educational guide.`,
+      },
+    });
+    
+    const response = await chat.sendMessageStream({ message });
+    for await (const chunk of response) {
+      onChunk(chunk.text || '');
+    }
+  },
+
+  analyzeDocument: async (fileName: string, fileContent: string, query: string, onChunk: (text: string) => void) => {
+    const response = await ai.models.generateContentStream({
+      model: "gemini-3-flash-preview",
+      contents: `You are analyzing a document named "${fileName}". 
+      
+      Document Content:
+      ${fileContent}
+      
+      User Query:
+      ${query}
+      
+      Instructions:
+      1. Summarize the document if requested.
+      2. Extract key points.
+      3. Answer specific questions based ONLY on the document content.
+      4. Use professional Markdown formatting.`,
+    });
+    for await (const chunk of response) {
+      onChunk(chunk.text || '');
+    }
+  },
+
+  solveMathProblem: async (problem: string) => {
+    return withRetry(async () => {
+      const model = ai.models.generateContent({
+        model: "gemini-3.1-pro-preview",
+        contents: `You are the TutorX Math Guru. Solve the following math problem step-by-step.
+        
+        CRITICAL BEHAVIOR:
+        1. NO GREETINGS: Do not use any introductory pleasantries.
+        2. STRAIGHT TO THE POINT: Start immediately with the solution steps.
+        
+        Problem: ${problem}
+        
+        Requirements:
+        1. Break the solution into clear, numbered steps.
+        2. Explain the logic for each step.
+        3. Include all relevant formulas used, formatted clearly in Markdown.
+        4. End with a section titled "Neural Insight" that explains the underlying mathematical concept or principle.
+        
+        Use Markdown for formatting.`,
+      });
+      const response = await model;
+      return response.text || '';
+    });
+  },
+
+  solveMathProblemStream: async (problem: string, onChunk: (text: string) => void) => {
+    const response = await ai.models.generateContentStream({
+      model: "gemini-3.1-pro-preview",
+      contents: `You are the TutorX Math Guru. Solve the following math problem step-by-step.
+      
+      CRITICAL BEHAVIOR:
+      1. NO GREETINGS: Do not use any introductory pleasantries.
+      2. STRAIGHT TO THE POINT: Start immediately with the solution steps.
+      
+      Problem: ${problem}
+      
+      Requirements:
+      1. Break the solution into clear, numbered steps.
+      2. Explain the logic for each step.
+      3. Include all relevant formulas used, formatted clearly in Markdown.
+      4. End with a section titled "Neural Insight" that explains the underlying mathematical concept or principle.
+      
+      Use Markdown for formatting.`,
+    });
+    for await (const chunk of response) {
+      onChunk(chunk.text || '');
+    }
+  },
+
+  analyzeImage: async (base64Data: string, mimeType: string, prompt: string) => {
+    return withRetry(async () => {
+      const model = ai.models.generateContent({
+        model: "gemini-2.5-flash-image",
+        contents: {
+          parts: [
+            {
+              inlineData: {
+                data: base64Data,
+                mimeType: mimeType,
+              },
+            },
+            {
+              text: prompt,
+            },
+          ],
+        },
+        config: {
+          systemInstruction: "You are TutorX, an AI vision expert. Analyze the provided image and provide a detailed, structured explanation. \n\nCRITICAL BEHAVIOR:\n1. NO GREETINGS: Do not use any introductory pleasantries.\n2. STRAIGHT TO THE POINT: Start immediately with the analysis.\n3. BREAK IT DOWN FIRST: Provide a logical breakdown BEFORE the final conclusion.\n\nIf it's a problem, solve it step-by-step. Use Markdown for formatting.",
+        }
+      });
+      const response = await model;
+      return response.text || '';
+    });
+  },
+
+  analyzeImageStream: async (base64Data: string, mimeType: string, prompt: string, onChunk: (text: string) => void) => {
+    const response = await ai.models.generateContentStream({
+      model: "gemini-2.5-flash-image",
+      contents: {
+        parts: [
+          {
+            inlineData: {
+              data: base64Data,
+              mimeType: mimeType,
+            },
+          },
+          {
+            text: prompt,
+          },
+        ],
+      },
+      config: {
+        systemInstruction: "You are TutorX, an AI vision expert. Analyze the provided image and provide a detailed, structured explanation. \n\nCRITICAL BEHAVIOR:\n1. NO GREETINGS: Do not use any introductory pleasantries.\n2. STRAIGHT TO THE POINT: Start immediately with the analysis.\n3. BREAK IT DOWN FIRST: Provide a logical breakdown BEFORE the final conclusion.\n\nIf it's a problem, solve it step-by-step. Use Markdown for formatting.",
       }
     });
     for await (const chunk of response) {
-      const c = chunk as GenerateContentResponse;
-      yield c.text;
+      onChunk(chunk.text || '');
     }
-  } catch (error: any) {
-    yield `Neural link failed: ${error.message}`;
-  }
-}
+  },
 
-export const askTutor = async (
-  question: string, 
-  context: LessonContent | { topic: string }, 
-  history: {role: 'user' | 'model', text: string}[], 
-  tier: SubscriptionTier = SubscriptionTier.FREE,
-  mode: TutorMode = 'auto'
-): Promise<string> => {
-  const ai = getAIClient();
-  const model = getOptimalModel(tier);
-  
-  try {
-    const chat = ai.chats.create({
-      model: model,
-      history: history.map(h => ({ role: h.role, parts: [{ text: h.text }] })),
-      config: { 
-        systemInstruction: SYSTEM_PROMPT + `\n\nCurrent Topic: ${context.topic}\n\nNEURAL STATE: [${mode.toUpperCase()} MODE].`,
-        temperature: 0.7
-      }
+  askQuestion: async (context: string, question: string, onChunk: (text: string) => void) => {
+    const response = await ai.models.generateContentStream({
+      model: "gemini-3-flash-preview",
+      contents: `Based on the following lesson content, answer the student's question.
+      
+      Lesson Content:
+      ${context}
+      
+      Student Question:
+      ${question}
+      
+      Provide a clear, concise, and helpful answer using Markdown.`,
     });
-    const result = await chat.sendMessage({ message: question });
-    return result.text || "Neural connection timeout.";
-  } catch (error: any) {
-    return `Neural link interrupted. Please check your connection.`;
-  }
-};
-
-export const askMathGuru = async (
-  question: string,
-  image?: { data: string; mimeType: string },
-  tier: SubscriptionTier = SubscriptionTier.FREE
-): Promise<string> => {
-  const ai = getAIClient();
-  const model = getOptimalModel(tier);
-
-  const parts: any[] = [{ text: question || "Please solve this math problem." }];
-  if (image) {
-    parts.push({
-      inlineData: {
-        data: image.data,
-        mimeType: image.mimeType
-      }
-    });
-  }
-
-  try {
-    const response = await ai.models.generateContent({
-      model: model,
-      contents: { parts },
-      config: {
-        systemInstruction: MATH_GURU_PROMPT,
-        temperature: 0.1,
-      }
-    });
-    return response.text || "Neural link interrupted.";
-  } catch (error: any) {
-    return `Neural link failed: ${error.message}`;
-  }
-};
-
-export const generateGeminiSpeech = async (text: string, voiceName: string = 'Kore'): Promise<string> => {
-  const ai = getAIClient();
-  try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-preview-tts",
-      contents: [{ parts: [{ text: text.substring(0, 5000) }] }],
-      config: {
-        responseModalities: [Modality.AUDIO],
-        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } },
-      },
-    });
-    const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    if (!base64Audio) throw new Error("Audio synthesis error.");
-    return base64Audio;
-  } catch (error: any) {
-    throw error;
+    for await (const chunk of response) {
+      onChunk(chunk.text || '');
+    }
   }
 };

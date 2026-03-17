@@ -1,0 +1,61 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Stores user profile information and progress.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "fullName": { "type": "string" },
+        "role": { "type": "string", "enum": ["Tutor", "Student"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "learningProgress": { "type": "integer" },
+        "completedTopics": { "type": "array", "items": { "type": "string" } },
+        "quizScores": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "topic": { "type": "string" },
+              "score": { "type": "integer" },
+              "date": { "type": "string", "format": "date-time" }
+            }
+          }
+        },
+        "tier": { "type": "string", "enum": ["FREE", "PRO", "ENTERPRISE"] },
+        "streak": { "type": "integer" },
+        "questionsAskedToday": { "type": "integer" },
+        "uploadedDocuments": { "type": "array", "items": { "type": "string" } },
+        "xp": { "type": "integer" },
+        "bookmarkedLessons": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "topic": { "type": "string" },
+              "difficulty": { "type": "string" },
+              "date": { "type": "string", "format": "date-time" }
+            }
+          }
+        },
+        "completedMasterclasses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "masterclassId": { "type": "string" },
+              "completedLessons": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        }
+      },
+      "required": ["email", "fullName", "role", "tier"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile documents."
+    }
+  }
+}

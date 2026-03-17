@@ -1,16 +1,29 @@
-
-export const DEVELOPER_CREDIT = "Developed by W Nthani for CipherX Inc";
 export const APP_NAME = "TutorX";
-export const MODEL_NAME = "gemini-3-flash-preview";
-export const FREE_DAILY_QUESTION_LIMIT = 100;
+export const APP_TAGLINE = "Neural Learning Engine";
 
-export const YOCO_LINKS = {
-  PREMIUM: {
-    MONTHLY: "https://pay.yoco.com/r/4GZMxE",
-    YEARLY: "https://pay.yoco.com/r/mzpVXL"
+export const TOPICS = [
+  "Quantum Physics",
+  "Artificial Intelligence",
+  "World History",
+  "Advanced Mathematics",
+  "Organic Chemistry",
+  "Macroeconomics"
+];
+
+export const PLANS = [
+  {
+    name: "Free",
+    price: "$0",
+    features: ["5 AI Questions/day", "Basic Lessons", "Community Support"]
   },
-  PRO: {
-    MONTHLY: "https://pay.yoco.com/r/4nnYGV",
-    YEARLY: "https://pay.yoco.com/r/4qdnE9"
+  {
+    name: "Pro",
+    price: "$19",
+    features: ["Unlimited AI Questions", "Advanced Quizzes", "Priority Support", "Document Analysis"]
+  },
+  {
+    name: "Enterprise",
+    price: "Custom",
+    features: ["Team Management", "Custom Learning Paths", "API Access", "Dedicated Account Manager"]
   }
-};
+];
