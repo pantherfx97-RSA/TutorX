@@ -27,7 +27,7 @@ import SavedView from './components/SavedView';
 import SettingsView from './components/SettingsView';
 import AboutView from './components/AboutView';
 import ContactView from './components/ContactView';
-import { Sparkles, Brain } from 'lucide-react';
+import { Sparkles, Brain, AlertCircle } from 'lucide-react';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -42,6 +42,14 @@ const App: React.FC = () => {
     return localStorage.getItem('tutorx_permissions_seen') === 'true';
   });
   const [pendingView, setPendingView] = useState<string | null>(null);
+  const [apiKeyMissing, setApiKeyMissing] = useState(false);
+
+  useEffect(() => {
+    const key = process.env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+    if (!key) {
+      setApiKeyMissing(true);
+    }
+  }, []);
 
   useEffect(() => {
     // Auto-adjust display settings based on device
@@ -157,9 +165,17 @@ const App: React.FC = () => {
     return <SplashScreen onFinish={() => setShowSplash(false)} />;
   }
 
+  const ApiKeyWarning = () => apiKeyMissing ? (
+    <div className="fixed top-0 left-0 right-0 z-[9999] bg-amber-500 text-slate-950 px-4 py-2 text-center text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2">
+      <AlertCircle size={14} />
+      Neural Engine Offline: GEMINI_API_KEY is missing in Vercel.
+    </div>
+  ) : null;
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-950">
+        <ApiKeyWarning />
         <div className="flex flex-col items-center">
           <div className="w-16 h-16 rounded-2xl bg-indigo-600 text-white flex items-center justify-center animate-pulse shadow-xl shadow-indigo-500/20">
             <Brain size={32} />
@@ -172,17 +188,27 @@ const App: React.FC = () => {
 
   // Auth View
   if (activeView === 'Auth') {
-    return <Auth onAuthSuccess={() => setActiveView('Dashboard')} />;
+    return (
+      <>
+        <ApiKeyWarning />
+        <Auth onAuthSuccess={() => setActiveView('Dashboard')} />
+      </>
+    );
   }
 
   // Landing View
   if (activeView === 'Landing' && !user) {
-    return <LandingPage 
-      onGetStarted={() => setActiveView('Auth')} 
-      onPrivacyClick={() => setActiveView('Privacy')} 
-      onSupportClick={() => setActiveView('Support')}
-      onTermsClick={() => setActiveView('Terms')}
-    />;
+    return (
+      <>
+        <ApiKeyWarning />
+        <LandingPage 
+          onGetStarted={() => setActiveView('Auth')} 
+          onPrivacyClick={() => setActiveView('Privacy')} 
+          onSupportClick={() => setActiveView('Support')}
+          onTermsClick={() => setActiveView('Terms')}
+        />
+      </>
+    );
   }
 
   if (activeView === 'Privacy' && !user) {
@@ -219,6 +245,12 @@ const App: React.FC = () => {
         onViewChange={setActiveView}
         onUpgradeClick={() => setIsUpgradeModalOpen(true)}
       >
+        {apiKeyMissing && (
+          <div className="fixed top-0 left-0 right-0 z-[9999] bg-amber-500 text-slate-950 px-4 py-2 text-center text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2">
+            <AlertCircle size={14} />
+            Neural Engine Offline: GEMINI_API_KEY is missing in Vercel.
+          </div>
+        )}
         {activeView === 'Dashboard' && (
           <Dashboard 
             profile={profile} 

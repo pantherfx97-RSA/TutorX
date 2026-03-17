@@ -93,7 +93,11 @@ const AITutorView: React.FC<AITutorViewProps> = ({ initialTopic, onClearTopic, o
 
   const handleSend = async (overrideInput?: string) => {
     const textToSend = overrideInput || input;
-    if (!textToSend.trim() || loading || isOffline) return;
+    if (!textToSend.trim() || loading || isOffline) {
+      if (isOffline) console.warn("Tutor AI: Offline mode detected.");
+      if (loading) console.warn("Tutor AI: Already loading.");
+      return;
+    }
 
     const messageId = Date.now().toString();
     const userMsg = { role: 'user' as const, text: textToSend, id: messageId };

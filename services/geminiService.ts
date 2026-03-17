@@ -1,8 +1,16 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+const getApiKey = () => {
+  const key = process.env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY || '';
+  return key;
+};
+
+const ai = new GoogleGenAI({ apiKey: getApiKey() });
 
 const withRetry = async <T>(fn: () => Promise<T>, retries = 3, delay = 2000): Promise<T> => {
+  if (!getApiKey()) {
+    throw new Error("Neural Engine API Key is missing. Please configure GEMINI_API_KEY in your environment variables.");
+  }
   try {
     return await fn();
   } catch (error: any) {
@@ -46,6 +54,7 @@ export const geminiService = {
   },
 
   generateMasterclass: async (subject: string, level: string, focus: string, onChunk?: (text: string) => void) => {
+    if (!getApiKey()) throw new Error("Neural Engine API Key is missing.");
     const response = await ai.models.generateContentStream({
       model: "gemini-3-flash-preview",
       contents: `Generate a structured masterclass for ${subject} at ${level} level, focusing on ${focus}.
@@ -68,6 +77,7 @@ export const geminiService = {
   },
 
   generateLessonStream: async (topic: string, level: string, onChunk: (text: string) => void) => {
+    if (!getApiKey()) throw new Error("Neural Engine API Key is missing.");
     const response = await ai.models.generateContentStream({
       model: "gemini-3-flash-preview",
       contents: `Generate a detailed lesson for ${topic} at ${level} level. 
@@ -80,6 +90,7 @@ export const geminiService = {
   },
 
   generateQuiz: async (topic: string, difficulty: string = 'Intermediate', count: number = 5) => {
+    if (!getApiKey()) throw new Error("Neural Engine API Key is missing.");
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: `Generate a ${count}-question multiple choice quiz about ${topic} at ${difficulty} level.
@@ -106,6 +117,7 @@ export const geminiService = {
     difficulty: string = 'Intermediate',
     learningMode: string = 'Standard'
   ) => {
+    if (!getApiKey()) throw new Error("Neural Engine API Key is missing.");
     const subjectPrompts: Record<string, string> = {
       'Math': 'You are a Math Guru. Use LaTeX for formulas. Explain steps clearly. Focus on logic and proofs.',
       'Science': 'You are a Science Expert. Explain physical laws, biological processes, or chemical reactions with real-world analogies.',
@@ -124,6 +136,10 @@ export const geminiService = {
 
     const chat = ai.chats.create({
       model: "gemini-3-flash-preview",
+      history: history.map(h => ({
+        role: h.role === 'user' ? 'user' : 'model',
+        parts: [{ text: h.text }]
+      })),
       config: {
         systemInstruction: `You are TutorX, a premium AI educational architect. 
         
@@ -153,6 +169,7 @@ export const geminiService = {
   },
 
   analyzeDocument: async (fileName: string, fileContent: string, query: string, onChunk: (text: string) => void) => {
+    if (!getApiKey()) throw new Error("Neural Engine API Key is missing.");
     const response = await ai.models.generateContentStream({
       model: "gemini-3-flash-preview",
       contents: `You are analyzing a document named "${fileName}". 
@@ -200,6 +217,7 @@ export const geminiService = {
   },
 
   solveMathProblemStream: async (problem: string, onChunk: (text: string) => void) => {
+    if (!getApiKey()) throw new Error("Neural Engine API Key is missing.");
     const response = await ai.models.generateContentStream({
       model: "gemini-3.1-pro-preview",
       contents: `You are the TutorX Math Guru. Solve the following math problem step-by-step.
@@ -250,6 +268,7 @@ export const geminiService = {
   },
 
   analyzeImageStream: async (base64Data: string, mimeType: string, prompt: string, onChunk: (text: string) => void) => {
+    if (!getApiKey()) throw new Error("Neural Engine API Key is missing.");
     const response = await ai.models.generateContentStream({
       model: "gemini-2.5-flash-image",
       contents: {
@@ -275,6 +294,7 @@ export const geminiService = {
   },
 
   askQuestion: async (context: string, question: string, onChunk: (text: string) => void) => {
+    if (!getApiKey()) throw new Error("Neural Engine API Key is missing.");
     const response = await ai.models.generateContentStream({
       model: "gemini-3-flash-preview",
       contents: `Based on the following lesson content, answer the student's question.
